@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRC — Apresentação do Sistema</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',system-ui,sans-serif;background:#0a0f1a;color:#e0e0e0;line-height:1.6}
+  .hero{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px;background:linear-gradient(135deg,#0a0f1a 0%,#0d1b2a 50%,#1b2838 100%);position:relative;overflow:hidden}
+  .hero::before{content:'';position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(0,168,126,.12),transparent 70%);top:-200px;right:-200px}
+  .hero::after{content:'';position:absolute;width:400px;height:400px;border-radius:50%;background:radial-gradient(circle,rgba(0,212,160,.08),transparent 70%);bottom:-100px;left:-100px}
+  .hero-badge{display:inline-block;padding:6px 18px;border-radius:50px;background:rgba(0,168,126,.15);border:1px solid rgba(0,168,126,.3);color:#00D4A0;font-size:.75rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;margin-bottom:24px}
+  .hero h1{font-size:clamp(2rem,5vw,3.5rem);font-weight:800;background:linear-gradient(135deg,#fff 0%,#00D4A0 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:12px}
+  .hero h2{font-size:clamp(1rem,2.5vw,1.4rem);font-weight:400;color:#8a9bb5;margin-bottom:40px;max-width:700px}
+  .hero-stats{display:flex;gap:40px;flex-wrap:wrap;justify-content:center;margin-top:20px}
+  .stat{text-align:center}
+  .stat-num{font-size:2.5rem;font-weight:800;color:#00D4A0}
+  .stat-label{font-size:.78rem;color:#8a9bb5;text-transform:uppercase;letter-spacing:.04em}
+  section{max-width:1100px;margin:0 auto;padding:60px 24px}
+  .section-title{font-size:1.6rem;font-weight:700;margin-bottom:6px;color:#fff}
+  .section-sub{font-size:.9rem;color:#8a9bb5;margin-bottom:32px}
+  .accent{color:#00D4A0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;margin-bottom:40px}
+  .card{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:24px;transition:all .3s}
+  .card:hover{border-color:rgba(0,168,126,.3);background:rgba(0,168,126,.04);transform:translateY(-4px);box-shadow:0 8px 32px rgba(0,168,126,.1)}
+  .card-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:14px;font-size:1.5rem}
+  .card h3{font-size:1rem;font-weight:700;color:#fff;margin-bottom:6px}
+  .card p{font-size:.84rem;color:#8a9bb5;line-height:1.5}
+  .card .tag{display:inline-block;padding:2px 10px;border-radius:20px;font-size:.68rem;font-weight:600;margin-top:10px}
+  .tag-green{background:rgba(0,168,126,.15);color:#00D4A0}
+  .tag-blue{background:rgba(59,130,246,.15);color:#60a5fa}
+  .tag-orange{background:rgba(232,124,30,.15);color:#f59e0b}
+  .tag-red{background:rgba(239,68,68,.15);color:#f87171}
+  .tag-purple{background:rgba(139,92,246,.15);color:#a78bfa}
+  .flow-section{background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:20px;padding:32px;margin-bottom:40px}
+  .flow-title{font-size:1.1rem;font-weight:700;color:#fff;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+  .flow-title .badge{padding:4px 12px;border-radius:20px;font-size:.7rem;font-weight:600}
+  .steps{display:flex;flex-direction:column;gap:12px}
+  .step{display:flex;gap:14px;align-items:flex-start}
+  .step-num{min-width:32px;height:32px;border-radius:50%;background:rgba(0,168,126,.15);color:#00D4A0;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;flex-shrink:0}
+  .step-text{font-size:.88rem;color:#c0c8d8}
+  .step-text strong{color:#fff}
+  .divider{height:1px;background:linear-gradient(90deg,transparent,rgba(0,168,126,.2),transparent);margin:40px 0}
+  .tech-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+  .tech-item{padding:16px;text-align:center;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:12px}
+  .tech-item strong{display:block;color:#fff;font-size:.85rem;margin-bottom:4px}
+  .tech-item span{font-size:.75rem;color:#8a9bb5}
+  table{width:100%;border-collapse:collapse;margin-top:12px;font-size:.84rem}
+  th{background:rgba(0,168,126,.1);padding:10px 14px;text-align:left;font-weight:600;color:#00D4A0;border-bottom:1px solid rgba(255,255,255,.1)}
+  td{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);color:#c0c8d8}
+  tr:hover td{background:rgba(255,255,255,.02)}
+  .footer{text-align:center;padding:40px 20px;color:#555;font-size:.78rem;border-top:1px solid rgba(255,255,255,.06)}
+  .highlight-box{background:linear-gradient(135deg,rgba(0,168,126,.08),rgba(0,212,160,.04));border:1px solid rgba(0,168,126,.2);border-radius:16px;padding:24px;margin:20px 0}
+  .highlight-box h3{color:#00D4A0;margin-bottom:8px}
+  @media(max-width:600px){.hero-stats{gap:24px}.grid{grid-template-columns:1fr}.tech-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<!-- ████ HERO ████ -->
+<div class="hero">
+  <div class="hero-badge">Sistema Unificado de Atendimento ao Contribuinte</div>
+  <h1>CRC — Central de Relacionamento<br>com o Contribuinte</h1>
+  <h2>Portal completo de serviços tributários municipais com autenticação Gov.BR, procuração eletrônica, IA e total conformidade com a LGPD.</h2>
+  <div class="hero-stats">
+    <div class="stat"><div class="stat-num">24+</div><div class="stat-label">Módulos Funcionais</div></div>
+    <div class="stat"><div class="stat-num">100%</div><div class="stat-label">Responsivo</div></div>
+    <div class="stat"><div class="stat-num">LGPD</div><div class="stat-label">Conformidade</div></div>
+    <div class="stat"><div class="stat-num">Gov.BR</div><div class="stat-label">Autenticação</div></div>
+  </div>
+</div>
+
+<!-- ████ VISÃO GERAL ████ -->
+<section>
+  <h2 class="section-title">Visão Geral do Sistema</h2>
+  <p class="section-sub">Plataforma web para relacionamento entre o contribuinte e a administração tributária municipal.</p>
+
+  <div class="highlight-box">
+    <h3>🎯 Proposta de Valor</h3>
+    <p style="color:#c0c8d8;font-size:.9rem">O CRC elimina a necessidade de atendimento presencial para 90% dos serviços tributários. O contribuinte consulta débitos, emite certidões, faz acordos, acompanha protocolos e recebe notificações — tudo online, pelo celular ou computador, autenticado de forma segura pelo Gov.BR.</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ████ AUTENTICAÇÃO ████ -->
+  <h2 class="section-title">🔐 Autenticação e Segurança</h2>
+  <p class="section-sub">Dois portais de acesso distintos com controle granular de permissões.</p>
+
+  <div class="grid">
+    <div class="card">
+      <div class="card-icon" style="background:rgba(59,130,246,.12)">🏛️</div>
+      <h3>Contribuinte — Gov.BR</h3>
+      <p>Acesso exclusivo via Gov.BR (SSO federal). CPF validado automaticamente. Níveis Bronze, Prata e Ouro com funcionalidades progressivas.</p>
+      <span class="tag tag-blue">OAuth2 / SAML</span>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:rgba(232,124,30,.12)">⚙️</div>
+      <h3>Equipe — Login + Senha</h3>
+      <p>Administradores, suporte e desenvolvedores acessam com login e senha interno. <strong>Master</strong> é o único que pode excluir usuários.</p>
+      <span class="tag tag-orange">RBAC</span>
+    </div>
+    <div class="card">
+      <div class="card-icon" style="background:rgba(139,92,246,.12)">📋</div>
+      <h3>e-Procuração</h3>
+      <p>Contadores e familiares acessam com seu próprio Gov.BR e a procuração habilita apenas os módulos autorizados. Assinatura digital.</p>
+      <span class="tag tag-purple">Assinatura Gov.BR</span>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ████ MÓDULOS ████ -->
+  <h2 class="section-title">📦 Módulos do Sistema</h2>
+  <p class="section-sub">24 módulos organizados em 6 categorias, todos funcionais e responsivos.</p>
+
+  <h3 style="color:#00D4A0;font-size:.9rem;margin-bottom:12px">PRINCIPAL</h3>
+  <div class="grid">
+    <div class="card">
+      <h3>Dashboard</h3>
+      <p>Painel com resumo fiscal, atalhos rápidos, débitos pendentes e alertas automáticos.</p>
+      <span class="tag tag-green">Funcional</span>
+    </div>
+    <div class="card">
+      <h3>Situação Fiscal</h3>
+      <p>Visão consolidada de todas as inscrições (imóveis e empresas) com status, débitos e dívida ativa.</p>
+      <span class="tag tag-green">Funcional</span>
+    </div>
+  </div>
+
+  <h3 style="color:#60a5fa;font-size:.9rem;margin-bottom:12px">EMISSÕES</h3>
+  <div class="grid">
+    <div class="card"><h3>Certidões de Débitos</h3><p>Emissão com modal de confirmação, código de autenticação e download PDF. Certidão Negativa ou Positiva c/ Efeito de Negativa.</p><span class="tag tag-green">Funcional</span></div>
+    <div class="card"><h3>Alvará de Funcionamento</h3><p>Emissão para empresas ativas. Renovação via protocolo com formulário pré-preenchido.</p><span class="tag tag-green">Funcional</span></div>
+    <div class="card"><h3>Cartão CGA</h3><p>Cadastro Geral de Atividades com emissão de cartão PDF por empresa.</p><span class="tag tag-green">Funcional</span></div>
+    <div class="card"><h3>2ª Via de Documentos</h3><p>Gera boleto com código de barras, PIX Copia e Cola e integração com agenda (Google/iOS).</p><span class="tag tag-green">Funcional</span></div>
+  </div>
+
+  <h3 style="color:#f59e0b;font-size:.9rem;margin-bottom:12px">FINANCEIRO</h3>
+  <div class="grid">
+    <div class="card"><h3>Extrato da Dívida</h3><p>Débitos inscritos em dívida ativa com filtros por inscrição, exercício e tributo.</p><span class="tag tag-green">Funcional</span></div>
+    <div class="card"><h3>Tributos em Aberto</h3><p>Seleção múltipla de tributos com geração de <strong>guia unificada</strong> (boleto + PIX).</p><span class="tag tag-green">Funcional</span></div>
+    <div class="card"><h3>Acordo da Dívida</h3><p>Simulação interativa (à vista ou parcelado até 36x). <strong>Formalização</strong> com DAM + QR Code PIX.</p><span class="tag tag-green">Funcional</span></div>
+    <div class="card"><h3>ITIV Online</h3><p>Cálculo do Imposto sobre Transmissão Inter Vivos com formulário de transação imobiliária.</p><span class="tag tag-green">Funcional</span></div>
+    <div class="card"><h3>NFSe</h3><p>Emissão de Nota Fiscal de Serviço Eletrônica com validação completa. Cancelamento com justificativa.</p><span class="tag tag-green">Funcional</span></div>
+  </div>
+
+  <h3 style="color:#a78bfa;font-size:.9rem;margin-bottom:12px">DOCUMENTOS</h3>
+  <div class="grid">
+    <div class="card"><h3>Ficha Cadastral</h3><p>Dados detalhados de imóveis e empresas. Botão "Solicitar Retificação" abre protocolo pré-preenchido.</p><span class="tag tag-green">Funcional</span></div>
+    <div class="card"><h3>Autenticação de Certidão</h3><p>Verificação funcional por código: exibe validade, tipo, emissão e resultado visual (válida/vencida/não encontrada).</p><span class="tag tag-green">Funcional</span></div>
+    <div class="card"><h3>Legislação</h3><p>Catálogo de leis, decretos e normas municipais com visualização de PDF.</p><span class="tag tag-green">Funcional</span></div>
+  </div>
+
+  <h3 style="color:#f87171;font-size:.9rem;margin-bottom:12px">SERVIÇOS</h3>
+  <div class="grid">
+    <div class="card"><h3>e-Procuração</h3><p>Outorgar poderes com seleção visual de módulos, vigência máxima de 1 ano, consulta à Receita Federal (CNPJ) e geração de PDF assinado.</p><span class="tag tag-green">Funcional</span></div>
+    <div class="card"><h3>Protocolo</h3><p>Abertura de processos (retificação, impugnação, isenção, restituição) com número automático e acompanhamento.</p><span class="tag tag-green">Funcional</span></div>
+    <div class="card"><h3>Domicílio Eletrônico (DEC)</h3><p>Notificações com valor jurídico. Leitura completa + <strong>registro de ciência</strong> com data/hora. Prazo de 15 dias.</p><span class="tag tag-green">Funcional</span></div>
+    <div class="card"><h3>Caixa Postal</h3><p>Mensagens da Prefeitura com leitura completa, remetente e contagem de não lidas.</p><span class="tag tag-green">Funcional</span></div>
+    <div class="card"><h3>Central de Notificações</h3><p>Configuração de canais (E-mail, WhatsApp, SMS) para alertas de vencimento e avisos.</p><span class="tag tag-green">Funcional</span></div>
+    <div class="card"><h3>LGPD — Meus Dados</h3><p>Solicitações de acesso, retificação, exclusão e portabilidade de dados pessoais conforme Lei 13.709/2018.</p><span class="tag tag-green">Funcional</span></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ████ PROCURAÇÃO ████ -->
+  <h2 class="section-title">📝 Procuração Eletrônica — Fluxo Completo</h2>
+  <p class="section-sub">Permite que contadores, familiares ou representantes acessem o portal em nome do contribuinte.</p>
+
+  <div class="flow-section">
+    <div class="flow-title">Fluxo de Procuração <span class="badge" style="background:rgba(0,168,126,.15);color:#00D4A0">Implementado</span></div>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text"><strong>Outorgante</strong> acessa o portal com Gov.BR e inicia nova procuração.</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">Informa <strong>CPF ou CNPJ</strong> do procurador. O sistema consulta a <strong>Receita Federal</strong> (CNPJ público com fallback multi-API).</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Seleciona <strong>módulos autorizados</strong> via cards visuais (ex: só Certidões e Tributos).</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">Define <strong>vigência</strong> (data início e fim, máximo 1 ano).</div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text"><strong>Assina via Gov.BR</strong> e o sistema gera <strong>PDF da procuração</strong> com dados preenchidos automaticamente.</div></div>
+      <div class="step"><div class="step-num">6</div><div class="step-text">O <strong>procurador</strong> acessa com seu próprio Gov.BR, vê a procuração recebida e clica <strong>"Acessar como"</strong>.</div></div>
+      <div class="step"><div class="step-num">7</div><div class="step-text">O portal muda para o <strong>perfil do outorgante</strong>: sidebar mostra apenas os módulos autorizados. Badge laranja na topbar indica modo procurador.</div></div>
+      <div class="step"><div class="step-num">8</div><div class="step-text">Todas as ações são <strong>registradas em log</strong> (visível apenas para admin/dev/sup).</div></div>
+    </div>
+  </div>
+
+  <div class="highlight-box">
+    <h3>💡 Caso de Uso Real</h3>
+    <p style="color:#c0c8d8;font-size:.9rem">Um <strong>contador</strong> precisa emitir certidões para 20 clientes. Cada cliente faz uma procuração eletrônica pelo Gov.BR autorizando apenas "Certidões". O contador acessa o CRC com seu próprio Gov.BR, seleciona o perfil do cliente e emite a certidão — <strong>sem precisar da senha do Gov.BR do cliente</strong>.</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ████ ACORDO ████ -->
+  <h2 class="section-title">🤝 Acordo da Dívida — Fluxo</h2>
+  <p class="section-sub">Simulação e formalização de parcelamento direto pelo portal.</p>
+
+  <div class="flow-section">
+    <div class="flow-title">Fluxo de Acordo <span class="badge" style="background:rgba(245,158,11,.15);color:#f59e0b">Financeiro</span></div>
+    <div class="steps">
+      <div class="step"><div class="step-num">1</div><div class="step-text">Débitos em dívida ativa são <strong>selecionados automaticamente</strong>.</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-text">Contribuinte escolhe forma: <strong>à vista (20% desconto)</strong> ou parcelado (6x, 12x, 24x, 36x).</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-text">Clica em <strong>"Simular Acordo"</strong> — sistema calcula entrada, parcelas e descontos.</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-text">Clica em <strong>"Formalizar Acordo"</strong> — gera DAM com código de barras + QR Code PIX.</div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-text">Opção de <strong>salvar na agenda</strong> (Google Calendar / ICS) para lembrete de vencimento.</div></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ████ ADMIN ████ -->
+  <h2 class="section-title">⚙️ Painel Administrativo</h2>
+  <p class="section-sub">8 abas de configuração para equipe técnica e administrativa.</p>
+
+  <table>
+    <thead><tr><th>Aba</th><th>Funcionalidade</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Entidade</strong></td><td>Cadastro do município: nome, CNPJ, endereço, telefone, logotipo (aparece no cabeçalho dos documentos)</td></tr>
+      <tr><td><strong>Gov.BR</strong></td><td>Configuração da integração Gov.BR: Client ID, Secret, Redirect URI, níveis de acesso</td></tr>
+      <tr><td><strong>IA Chatbot</strong></td><td>API Key, modelo, system prompt, temas bloqueados. O chatbot responde APENAS sobre o portal</td></tr>
+      <tr><td><strong>Procuração</strong></td><td>Modelo padrão da procuração com placeholders dinâmicos ({nome}, {cpf}, etc.). Editável apenas por dev/sup</td></tr>
+      <tr><td><strong>Módulos</strong></td><td>Habilitar/desabilitar módulos do portal conforme serviços contratados pelo município</td></tr>
+      <tr><td><strong>Usuários</strong></td><td>CRUD de usuários admin com perfis (Master, Suporte, Dev). Master é "todo-poderoso"</td></tr>
+      <tr><td><strong>Configurações</strong></td><td>Parâmetros gerais do sistema</td></tr>
+      <tr><td><strong>Logs</strong></td><td>Logs de atividade do sistema + <strong>logs de procuração</strong> (quem acessou como procurador, o quê e quando)</td></tr>
+    </tbody>
+  </table>
+
+  <div class="divider"></div>
+
+  <!-- ████ BANCO ████ -->
+  <h2 class="section-title">🗄️ Arquitetura de Banco — MSSQL</h2>
+  <p class="section-sub">Mapeamento completo das tabelas para integração com o sistema tributário existente.</p>
+
+  <table>
+    <thead><tr><th>Área</th><th>Tabelas Principais</th><th>Procedures</th></tr></thead>
+    <tbody>
+      <tr><td>Configuração</td><td>ACE_Parametro, GER_ICONE, GER_ENTIDADE</td><td>—</td></tr>
+      <tr><td>Autenticação</td><td>FR_USUARIO, GOVBR_TOKEN, GOVBR_NIVEIS, ECAC_LOGIN_TOKEN</td><td>—</td></tr>
+      <tr><td>Caixa Postal</td><td>ECAC_CAIXA_POSTAL_ENVIO, ECAC_CAIXA_POSTAL_LOTE</td><td>STP_ECAC_INSERE_DADOS_NOTIFICACAO</td></tr>
+      <tr><td>Procuração</td><td>Procuracao, Procuracao_Servicos_ECAC</td><td>—</td></tr>
+      <tr><td>Acordos</td><td>Acordo, TRB_DIVIDA_ACORDO_WEB, ACORDO_DIVIDA_PARCELAS_TABELA</td><td>PROC_SIMULADO_ACORDO, PROCEDURE_CANCELAMENTO</td></tr>
+      <tr><td>Emissões</td><td>IPTU_CPF_CNPJ, TAXA_EXP_CPF_CNPJ, ISS_AUTONOMO_TABELA</td><td>—</td></tr>
+      <tr><td>Certidões</td><td>TRB_VALIDACAO_CERTIDAO, TIPO_CERTIDOES_WEB</td><td>—</td></tr>
+      <tr><td>LGPD</td><td>ECAC_FORMULARIO_ELETRONICO, ECAC_TERMO_USUARIO</td><td>—</td></tr>
+      <tr><td>Auditoria</td><td>Acesso_Login_ECAC_LOG, Acesso_PROTOCOLO_LOG_ERRO</td><td>—</td></tr>
+    </tbody>
+  </table>
+
+  <div class="divider"></div>
+
+  <!-- ████ TECNOLOGIA ████ -->
+  <h2 class="section-title">🛠️ Stack Tecnológica</h2>
+  <p class="section-sub">Arquitetura moderna preparada para produção.</p>
+
+  <div class="tech-grid">
+    <div class="tech-item"><strong>Node.js</strong><span>Backend + API REST</span></div>
+    <div class="tech-item"><strong>Express.js</strong><span>Servidor HTTP</span></div>
+    <div class="tech-item"><strong>EJS</strong><span>Templates</span></div>
+    <div class="tech-item"><strong>JavaScript</strong><span>SPA Frontend</span></div>
+    <div class="tech-item"><strong>PDFKit</strong><span>Geração de PDFs</span></div>
+    <div class="tech-item"><strong>MSSQL</strong><span>Banco de Dados</span></div>
+    <div class="tech-item"><strong>Gov.BR</strong><span>SSO Federal</span></div>
+    <div class="tech-item"><strong>Docker</strong><span>Containerização</span></div>
+    <div class="tech-item"><strong>GitHub Actions</strong><span>CI/CD</span></div>
+    <div class="tech-item"><strong>API Receita</strong><span>Consulta CNPJ</span></div>
+    <div class="tech-item"><strong>IA / LLM</strong><span>Chatbot</span></div>
+    <div class="tech-item"><strong>PIX</strong><span>QR Code</span></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- ████ DIFERENCIAIS ████ -->
+  <h2 class="section-title">🏆 Diferenciais Competitivos</h2>
+  <div class="grid">
+    <div class="card"><h3>🔒 Gov.BR Nativo</h3><p>Autenticação federal sem necessidade de criar conta local. Assinatura digital de documentos.</p></div>
+    <div class="card"><h3>📱 100% Responsivo</h3><p>Funciona perfeitamente em celulares, tablets e desktops. Interface adaptativa.</p></div>
+    <div class="card"><h3>🤖 IA Integrada</h3><p>Chatbot inteligente que responde dúvidas do contribuinte. Configurável e restrito ao portal.</p></div>
+    <div class="card"><h3>📝 e-Procuração</h3><p>Contadores acessam clientes sem senha. Controle granular de módulos por procuração.</p></div>
+    <div class="card"><h3>📊 Logs Completos</h3><p>Auditoria total de acessos como procurador. Rastreabilidade de ações.</p></div>
+    <div class="card"><h3>🏛️ Multi-Tenant</h3><p>Preparado para múltiplos municípios com configuração de entidade independente.</p></div>
+    <div class="card"><h3>🎨 Tema Escuro/Claro</h3><p>Interface com alternância de tema, acessibilidade e tour guiado contextual.</p></div>
+    <div class="card"><h3>📋 LGPD Compliance</h3><p>Formulário eletrônico para exercício de direitos: acesso, retificação, exclusão e portabilidade.</p></div>
+  </div>
+</section>
+
+<div class="footer">
+  <p>CRC — Central de Relacionamento com o Contribuinte v2.0 &nbsp;|&nbsp; Março 2026</p>
+  <p style="margin-top:6px;color:#666">Documento de apresentação — Acesse o sistema: <strong>http://localhost:4000</strong></p>
+</div>
+
+</body>
+</html>

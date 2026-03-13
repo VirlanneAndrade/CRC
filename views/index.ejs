@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRC | Central de Relacionamento com o Contribuinte — Lauro de Freitas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+
+  <!-- ====== LOGIN ====== -->
+  <div id="login-screen" class="screen active">
+    <div class="login-bg">
+      <div class="login-particles" id="particles"></div>
+
+      <!-- TELA CONTRIBUINTE -->
+      <div class="login-center" id="login-contribuinte">
+        <div class="login-logo-svg">
+          <svg viewBox="0 0 340 70" fill="none" xmlns="http://www.w3.org/2000/svg" class="logo-svg-main">
+            <rect x="8" y="40" width="10" height="22" rx="3" fill="#00D4A0" opacity="0.5"/>
+            <rect x="22" y="28" width="10" height="34" rx="3" fill="#00D4A0" opacity="0.7"/>
+            <rect x="36" y="14" width="10" height="48" rx="3" fill="#00D4A0"/>
+            <path d="M41 14 L41 5 L48 12" stroke="#00D4A0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <circle cx="41" cy="4" r="2" fill="#00D4A0" opacity="0.6"><animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/></circle>
+            <text x="58" y="38" fill="#00D4A0" font-size="24" font-weight="900" font-family="Inter, sans-serif" letter-spacing="-0.3">CRC</text>
+            <text x="58" y="56" fill="#00D4A0" font-size="8" font-family="Inter, sans-serif" font-weight="400" opacity="0.55">Central de Relacionamento com o Contribuinte</text>
+          </svg>
+        </div>
+        <div class="login-card">
+          <div class="login-card-header">
+            <h2>Portal do Contribuinte</h2>
+            <p>Município de Lauro de Freitas — Bahia</p>
+          </div>
+          <button class="btn btn-govbr" onclick="doLogin()" style="margin-bottom:12px">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            Entrar com Gov.BR
+          </button>
+          <p style="font-size:.78rem;color:var(--text-muted);text-align:center;line-height:1.5;margin-top:8px">Acesso exclusivo via <strong>Gov.BR</strong>.<br>Se você é procurador, acesse com seu próprio Gov.BR e a procuração será carregada automaticamente.</p>
+          <div class="login-links" style="margin-top:12px"><a href="https://www.gov.br/governodigital/pt-br/conta-gov-br" target="_blank">O que é Gov.BR?</a><a href="https://acesso.gov.br" target="_blank">Criar conta Gov.BR</a></div>
+        </div>
+        <button class="login-switch-btn" onclick="switchToAdminLogin()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Acesso administrativo
+        </button>
+        <p class="login-footer-text">v1.0 — Central de Relacionamento com o Contribuinte</p>
+      </div>
+
+      <!-- TELA ADMIN -->
+      <div class="login-center login-hidden" id="login-admin">
+        <div class="login-logo-svg">
+          <svg viewBox="0 0 340 70" fill="none" xmlns="http://www.w3.org/2000/svg" class="logo-svg-main" style="filter:drop-shadow(0 2px 20px rgba(232,124,30,.35)) drop-shadow(0 0 40px rgba(232,124,30,.1))">
+            <rect x="8" y="40" width="10" height="22" rx="3" fill="#E87C1E" opacity="0.5"/>
+            <rect x="22" y="28" width="10" height="34" rx="3" fill="#E87C1E" opacity="0.7"/>
+            <rect x="36" y="14" width="10" height="48" rx="3" fill="#E87C1E"/>
+            <path d="M41 14 L41 5 L48 12" stroke="#E87C1E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            <circle cx="41" cy="4" r="2" fill="#E87C1E" opacity="0.6"><animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/></circle>
+            <text x="58" y="38" fill="#E87C1E" font-size="24" font-weight="900" font-family="Inter, sans-serif" letter-spacing="-0.3">CRC</text>
+            <text x="58" y="56" fill="#E87C1E" font-size="8" font-family="Inter, sans-serif" font-weight="400" opacity="0.55">Painel Administrativo</text>
+          </svg>
+        </div>
+        <div class="login-card" style="border-color:rgba(232,124,30,.35)">
+          <div class="login-card-header">
+            <h2 style="color:#E87C1E">Acesso Administrativo</h2>
+            <p>Suporte, desenvolvimento e administradores</p>
+          </div>
+          <div class="form-group"><label>Login</label><input type="text" placeholder="Usuário" class="form-input" id="admin-login-user" autocomplete="username"></div>
+          <div class="form-group"><label>Senha</label><input type="password" placeholder="••••••••" class="form-input" id="admin-login-pass" onkeydown="if(event.key==='Enter')doAdminLogin()" autocomplete="current-password"></div>
+          <button class="btn btn-primary" style="background:#E87C1E;color:#fff" onclick="doAdminLogin()">Entrar como Admin</button>
+        </div>
+        <button class="login-switch-btn" onclick="switchToContribLogin()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+          Voltar para Portal do Contribuinte
+        </button>
+        <p class="login-footer-text">v1.0 — Central de Relacionamento com o Contribuinte</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ====== APP ====== -->
+  <div id="app-screen" class="screen">
+    <div id="sidebar-overlay" class="sidebar-overlay" onclick="toggleMobileSidebar()"></div>
+    <aside id="sidebar" class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">
+          <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="10" fill="#00D4A0"/><text x="50%" y="56%" dominant-baseline="middle" text-anchor="middle" fill="#0A1A12" font-size="14" font-weight="900" font-family="Inter">CRC</text></svg>
+          <span class="sidebar-brand">CRC</span>
+        </div>
+        <button class="sidebar-collapse-btn" onclick="toggleSidebar()" id="sidebar-collapse-btn" data-tour="sidebar-toggle" title="Recolher menu">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="11 17 6 12 11 7"/><polyline points="18 17 13 12 18 7"/></svg>
+        </button>
+      </div>
+      <nav class="sidebar-nav" id="sidebar-nav">
+        <div class="nav-section">PRINCIPAL</div>
+        <a class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" data-tour="nav-dashboard"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span class="nav-label">Início</span></a>
+        <a class="nav-item" data-page="situacao_fiscal" onclick="navigate('situacao_fiscal')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span class="nav-label">Situação Fiscal</span></a>
+
+        <div class="nav-section">EMISSÕES</div>
+        <a class="nav-item" data-page="certidoes" onclick="navigate('certidoes')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span class="nav-label">Certidões</span></a>
+        <a class="nav-item" data-page="alvara" onclick="navigate('alvara')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/></svg><span class="nav-label">Alvará</span></a>
+        <a class="nav-item" data-page="cartao_cga" onclick="navigate('cartao_cga')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span class="nav-label">Cartão CGA</span></a>
+        <a class="nav-item" data-page="segunda_via" onclick="navigate('segunda_via')" data-tour="nav-2via"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg><span class="nav-label">2ª Via Documentos</span></a>
+
+        <div class="nav-section">FINANCEIRO</div>
+        <a class="nav-item" data-page="extrato_divida" onclick="navigate('extrato_divida')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span class="nav-label">Extrato da Dívida</span></a>
+        <a class="nav-item" data-page="tributos" onclick="navigate('tributos')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg><span class="nav-label">Tributos em Aberto</span></a>
+        <a class="nav-item" data-page="acordo" onclick="navigate('acordo')" data-tour="nav-acordo"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span class="nav-label">Acordo da Dívida</span></a>
+        <a class="nav-item" data-page="itiv" onclick="navigate('itiv')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span class="nav-label">ITIV Online</span></a>
+        <a class="nav-item" data-page="nfse" onclick="navigate('nfse')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg><span class="nav-label">NFSe</span></a>
+
+        <div class="nav-section">DOCUMENTOS</div>
+        <a class="nav-item" data-page="ficha_cadastral" onclick="navigate('ficha_cadastral')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="12" y2="15"/></svg><span class="nav-label">Ficha Cadastral</span></a>
+        <a class="nav-item" data-page="autenticacao" onclick="navigate('autenticacao')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg><span class="nav-label">Autenticação Certidão</span></a>
+        <a class="nav-item" data-page="legislacao" onclick="navigate('legislacao')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg><span class="nav-label">Legislação</span></a>
+
+        <div class="nav-section">SERVIÇOS</div>
+        <a class="nav-item" data-page="procuracao" onclick="navigate('procuracao')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg><span class="nav-label">Procuração</span></a>
+        <a class="nav-item" data-page="protocolo" onclick="navigate('protocolo')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></svg><span class="nav-label">Protocolo</span></a>
+        <a class="nav-item" data-page="dec" onclick="navigate('dec')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg><span class="nav-label">Domicílio Eletrônico</span></a>
+        <a class="nav-item" data-page="caixa_postal" onclick="navigate('caixa_postal')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/></svg><span class="nav-label">Caixa Postal</span></a>
+        <a class="nav-item" data-page="notificacoes" onclick="navigate('notificacoes')" data-tour="nav-notif"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg><span class="nav-label">Notificações</span></a>
+        <a class="nav-item" data-page="formulario_lgpd" onclick="navigate('formulario_lgpd')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg><span class="nav-label">LGPD — Meus Dados</span></a>
+
+        <div class="nav-section">CONTA</div>
+        <a class="nav-item" data-page="perfil" onclick="navigate('perfil')" data-tour="nav-perfil"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span class="nav-label">Meu Perfil</span></a>
+        <a class="nav-item" data-page="faq" onclick="navigate('faq')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span class="nav-label">FAQ</span></a>
+        <a class="nav-item nav-logout" onclick="doLogout()" style="color:var(--danger)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span class="nav-label">Sair</span></a>
+
+        <div id="sidebar-dev-section" style="display:none">
+        <div class="nav-section">ADMINISTRAÇÃO</div>
+        <a class="nav-item" data-page="config_dev" onclick="navigate('config_dev')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg><span class="nav-label">Configurações</span></a>
+        <a class="nav-item" onclick="doLogout()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg><span class="nav-label">Sair</span></a>
+        </div>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="theme-toggle" onclick="toggleTheme()" data-tour="theme-toggle" title="Alternar tema">
+          <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          <span class="nav-label theme-label">Tema</span>
+        </button>
+        <div class="sidebar-user-area">
+          <div class="sidebar-user" onclick="navigate('perfil')">
+            <div class="avatar" id="sidebar-avatar">MF</div>
+            <div class="user-info"><span class="user-name" id="sidebar-username">Maria Fernanda</span><span class="user-level">Gov.BR Ouro</span></div>
+          </div>
+          <button class="contrib-switch-btn" id="contrib-switch-btn" onclick="event.stopPropagation();toggleContribPicker()" title="Trocar contribuinte (simulação)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M21 3l-7 7"/><path d="M8 21H3v-5"/><path d="M3 21l7-7"/></svg>
+          </button>
+        </div>
+        <div class="contrib-picker" id="contrib-picker" style="display:none">
+          <div class="contrib-picker-header">
+            <span>Trocar contribuinte</span>
+            <span class="contrib-picker-badge">Simulação</span>
+          </div>
+          <div id="contrib-picker-list"></div>
+        </div>
+      </div>
+    </aside>
+
+    <main id="main-content" class="main-content">
+      <header class="topbar">
+        <button class="mobile-menu-btn" onclick="toggleMobileSidebar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+        <div class="topbar-title" id="topbar-title">Painel do Contribuinte</div>
+        <div id="procurador-badge" class="procurador-badge" style="display:none">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+          <span class="proc-badge-name">—</span>
+          <button class="proc-badge-exit" onclick="event.stopPropagation();desativarProcurador()" title="Voltar ao meu perfil">Voltar ao meu perfil</button>
+        </div>
+        <div class="topbar-actions">
+          <button class="topbar-btn tour-btn" onclick="startTour()" title="Ajuda sobre esta tela" data-tour="tour-btn">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </button>
+          <button class="topbar-btn notification-btn" onclick="navigate('notificacoes')">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+            <span class="notif-badge">3</span>
+          </button>
+          <div class="topbar-user" onclick="navigate('perfil')">
+            <div class="avatar-sm" id="topbar-avatar">MF</div>
+            <span class="topbar-username">Maria Fernanda</span>
+          </div>
+          <button class="topbar-btn topbar-logout-btn" onclick="doLogout()" title="Sair do sistema">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+      </header>
+      <div id="page-container" class="page-container"></div>
+    </main>
+  </div>
+
+  <!-- ====== MODAL BOLETO ====== -->
+  <div id="modal-boleto" class="modal-overlay" style="display:none">
+    <div class="modal modal-lg">
+      <div class="modal-header"><h3>Boleto / PIX</h3><button class="modal-close" onclick="closeModal('modal-boleto')">&times;</button></div>
+      <div class="modal-body" id="modal-boleto-body" style="max-height:70vh;overflow-y:auto"></div>
+      <div class="modal-footer"><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-boleto')">Fechar</button></div>
+    </div>
+  </div>
+
+  <!-- ====== MODAIS ====== -->
+  <div id="modal-notif" class="modal-overlay" style="display:none">
+    <div class="modal modal-lg">
+      <div class="modal-header"><h3>Central de Notificações</h3><button class="modal-close" onclick="closeModal('modal-notif')">&times;</button></div>
+      <div class="modal-body">
+        <div class="modal-robot-row"><div class="robot-container" id="robot-notif"></div><div class="robot-speech"><p>Configure <strong>alertas automáticos</strong> para nunca perder um vencimento!</p></div></div>
+        <div class="notif-channel-grid">
+          <label class="notif-channel-card"><input type="checkbox" class="notif-check" checked><div class="notif-channel-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><span class="notif-channel-name">E-mail</span></label>
+          <label class="notif-channel-card"><input type="checkbox" class="notif-check"><div class="notif-channel-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></div><span class="notif-channel-name">WhatsApp</span></label>
+          <label class="notif-channel-card"><input type="checkbox" class="notif-check"><div class="notif-channel-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div><span class="notif-channel-name">SMS</span></label>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-notif')">Agora não</button><button class="btn btn-primary btn-sm" onclick="localStorage.setItem('arrecada_notif_seen','1');closeModal('modal-notif')">Salvar</button></div>
+    </div>
+  </div>
+
+  <!-- ====== TOUR ====== -->
+  <div id="tour-overlay" class="tour-overlay" style="display:none">
+    <div class="tour-spotlight" id="tour-spotlight"></div>
+    <div class="tour-tooltip" id="tour-tooltip">
+      <div class="tour-tooltip-robot" id="tour-robot"></div>
+      <div class="tour-tooltip-content">
+        <p class="tour-text" id="tour-text"></p>
+        <div class="tour-actions"><span class="tour-counter" id="tour-counter"></span><div class="tour-btns"><button class="btn btn-ghost btn-sm" onclick="endTour()">Pular</button><button class="btn btn-primary btn-sm" id="tour-next-btn" onclick="nextTourStep()">Próximo</button></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== CHAT IA FLUTUANTE ====== -->
+  <div id="robot-assistant" class="robot-floating" onclick="toggleChat()"><div class="robot-pulse"></div><div class="robot-body" id="robot-main"></div></div>
+  <div id="chat-window" class="chat-window" style="display:none">
+    <div class="chat-header">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div id="robot-menu-icon" style="width:28px;height:28px"></div>
+        <div><div style="font-size:.88rem;font-weight:700">Assistente CRC</div><div style="font-size:.68rem;color:rgba(255,255,255,.7)">Online — Pergunte sobre o Portal</div></div>
+      </div>
+      <button class="chat-close" onclick="toggleChat()">&times;</button>
+    </div>
+    <div class="chat-body" id="chat-body"></div>
+    <div class="chat-footer">
+      <input class="chat-input" id="chat-input" type="text" placeholder="Digite sua pergunta..." onkeydown="if(event.key==='Enter')sendChat()">
+      <button class="chat-send" onclick="sendChat()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg></button>
+    </div>
+  </div>
+
+  <input type="file" id="photo-upload" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
+  <script src="/js/app.js"></script>
+</body>
+</html>
