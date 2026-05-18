@@ -332,6 +332,26 @@ input[type="checkbox"]{accent-color:var(--accent);width:15px;height:15px}
 .back-sep{color:var(--border);font-size:.7rem}
 .back-current{color:var(--text-secondary);font-weight:600}
 @media(max-width:480px){.back-nav-btn{padding:4px 10px 4px 6px;font-size:.74rem}.back-nav-trail{font-size:.68rem}}
+.dec-status-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700}
+.dec-status-pill--ok{background:rgba(47,143,94,.15);color:#1f8f5e}
+.dec-ciencia-banner{padding:10px 14px;border-top:1px solid transparent;border-bottom:1px solid transparent}
+.dec-ciencia-banner.is-efetiva{background:rgba(31,143,94,.12);border-color:rgba(31,143,94,.28);text-align:center}
+.dec-ciencia-banner.is-tacita{background:rgba(255,196,71,.15);border-color:rgba(255,196,71,.3)}
+.dec-ciencia-banner-title{font-weight:800;color:#8a6a00;display:flex;align-items:center;gap:8px}
+.dec-ciencia-banner.is-efetiva .dec-ciencia-banner-title{justify-content:center;color:#1f8f5e}
+.dec-ciencia-banner-ref{font-size:.76rem;color:var(--text-secondary)}
+.dec-ciencia-banner.is-efetiva .dec-ciencia-banner-ref{text-align:center}
+.dec-ciencia-check{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:rgba(31,143,94,.18)}
+.dec-upload{border:1px dashed var(--border);border-radius:12px;padding:12px;background:var(--bg-input)}
+.dec-upload-input{position:absolute;opacity:0;pointer-events:none}
+.dec-upload-trigger{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:10px;background:var(--accent-glow2);border:1px solid rgba(58,160,176,.4);color:var(--text-primary);cursor:pointer;font-weight:600}
+.dec-upload-trigger:hover{filter:brightness(.98)}
+.dec-upload-hint{font-size:.74rem;color:var(--text-muted);margin-top:8px}
+.dec-upload-list{display:grid;gap:8px;margin-bottom:10px}
+.dec-upload-item{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;border-radius:10px;background:var(--bg-input);border:1px solid var(--border-light)}
+.dec-upload-item-name{font-size:.78rem;color:var(--text-secondary)}
+.dec-upload-item-size{font-size:.72rem;color:var(--text-muted)}
+.dec-upload-empty{font-size:.78rem;color:var(--text-muted)}
 
 .summary-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin-bottom:22px}
 .summary-card{

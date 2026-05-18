@@ -7,6 +7,31 @@ const { generateCodigoCertidao, maskDocumento } = require('../services/criticalU
 const router = express.Router();
 const validationCodes = new Map();
 const documentPdfCache = new Map();
+const DEFAULT_ENTIDADE_CONFIG = {
+  nome: 'Municipio de Lauro de Freitas',
+  cnpj: '',
+  endereco: '',
+  uf: '',
+  email: '',
+  telefone: '',
+  responsavel: '',
+  logo: '',
+};
+const DEFAULT_TRIBUTOS_CONFIG = {
+  apiBaseUrl: '',
+  authType: 'bearer',
+  authToken: '',
+  healthPath: '/health',
+  timeoutMs: 10000,
+  sincronizacao: '15min',
+  recursos: [],
+};
+const DEFAULT_NOTIFICACOES_CONFIG = {
+  emailWebhookUrl: '',
+  whatsappWebhookUrl: '',
+  smsWebhookUrl: '',
+  remetentePadrao: 'Portal CRC',
+};
 
 const TERMO_VERSAO = 'v1.1-2026-05-18';
 const TERMO_HTML = `
@@ -26,26 +51,176 @@ function getLatestConsent(userId) {
   return entries.length ? entries[entries.length - 1] : null;
 }
 
-function buildPdfBuffer({ title, subtitle, fields = [], footer = '' }) {
+function normalizeEntidadeConfig(raw = {}) {
+  return {
+    nome: String(raw.nome || DEFAULT_ENTIDADE_CONFIG.nome).trim() || DEFAULT_ENTIDADE_CONFIG.nome,
+    cnpj: String(raw.cnpj || '').trim(),
+    endereco: String(raw.endereco || '').trim(),
+    uf: String(raw.uf || '').trim(),
+    email: String(raw.email || '').trim(),
+    telefone: String(raw.telefone || '').trim(),
+    responsavel: String(raw.responsavel || '').trim(),
+    logo: typeof raw.logo === 'string' ? raw.logo : '',
+  };
+}
+
+function normalizeTributosConfig(raw = {}) {
+  const recursos = Array.isArray(raw.recursos) ? raw.recursos.map((x) => String(x || '').trim()).filter(Boolean) : [];
+  const timeoutMs = Number(raw.timeoutMs || DEFAULT_TRIBUTOS_CONFIG.timeoutMs);
+  return {
+    apiBaseUrl: String(raw.apiBaseUrl || '').trim(),
+    authType: String(raw.authType || DEFAULT_TRIBUTOS_CONFIG.authType).trim() || DEFAULT_TRIBUTOS_CONFIG.authType,
+    authToken: String(raw.authToken || '').trim(),
+    healthPath: String(raw.healthPath || DEFAULT_TRIBUTOS_CONFIG.healthPath).trim() || DEFAULT_TRIBUTOS_CONFIG.healthPath,
+    timeoutMs: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : DEFAULT_TRIBUTOS_CONFIG.timeoutMs,
+    sincronizacao: String(raw.sincronizacao || DEFAULT_TRIBUTOS_CONFIG.sincronizacao).trim() || DEFAULT_TRIBUTOS_CONFIG.sincronizacao,
+    recursos,
+  };
+}
+
+function normalizeNotificacoesConfig(raw = {}) {
+  return {
+    emailWebhookUrl: String(raw.emailWebhookUrl || '').trim(),
+    whatsappWebhookUrl: String(raw.whatsappWebhookUrl || '').trim(),
+    smsWebhookUrl: String(raw.smsWebhookUrl || '').trim(),
+    remetentePadrao: String(raw.remetentePadrao || DEFAULT_NOTIFICACOES_CONFIG.remetentePadrao).trim() || DEFAULT_NOTIFICACOES_CONFIG.remetentePadrao,
+  };
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function resolveEntidadeConfig(entidadePayload) {
+  if (entidadePayload && typeof entidadePayload === 'object') {
+    return normalizeEntidadeConfig(entidadePayload);
+  }
+  const store = readStore();
+  return normalizeEntidadeConfig(store.entidadeConfig || {});
+}
+
+function getImageBufferFromDataUrl(dataUrl) {
+  if (typeof dataUrl !== 'string') return null;
+  const match = dataUrl.match(/^data:(image\/(?:png|jpe?g|webp));base64,(.+)$/i);
+  if (!match) return null;
+  try {
+    return Buffer.from(match[2], 'base64');
+  } catch (_err) {
+    return null;
+  }
+}
+
+function formatFieldLabel(raw) {
+  const key = String(raw || '').toLowerCase();
+  const labels = {
+    tipo: 'Tipo',
+    inscricao: 'Inscricao',
+    vinculo: 'Vinculo',
+    situacao: 'Situacao',
+    cnpj: 'CNPJ',
+    empresa: 'Empresa',
+    validadeinformada: 'Validade Informada',
+    razaosocial: 'Razao Social',
+    atividade: 'Atividade',
+    tributo: 'Tributo',
+    valor: 'Valor',
+    vencimento: 'Vencimento',
+    codigodeautenticacao: 'Codigo de Autenticacao',
+    emissao: 'Emissao',
+    validade: 'Validade',
+    cpf: 'CPF',
+    endereco: 'Endereco',
+    bairro: 'Bairro',
+    cep: 'CEP',
+    cidade: 'Cidade',
+    uf: 'UF',
+  };
+  const compact = key.replace(/\s+/g, '').replace(/_/g, '');
+  if (labels[compact]) return labels[compact];
+  return String(raw || '')
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/^./, (c) => c.toUpperCase());
+}
+
+function drawPdfHeader(doc, { entidade, title, subtitle }) {
+  const left = doc.page.margins.left;
+  const right = doc.page.width - doc.page.margins.right;
+  const top = 42;
+  const logoSize = 54;
+  const logoBuffer = getImageBufferFromDataUrl(entidade.logo);
+  const centerX = (left + right) / 2;
+
+  if (logoBuffer) {
+    try {
+      doc.image(logoBuffer, centerX - 260, top + 2, { fit: [logoSize, logoSize], align: 'left' });
+    } catch (_err) {
+      // Ignore invalid image payloads to keep PDF generation resilient.
+    }
+  }
+
+  const local = [entidade.endereco, entidade.uf].filter(Boolean).join(' - ');
+
+  doc.fontSize(17).fillColor('#1d2e40').font('Helvetica-Bold').text(entidade.nome, left, top, { width: right - left, align: 'center' });
+  if (entidade.cnpj) doc.fontSize(11).fillColor('#304a67').font('Helvetica').text(`CNPJ: ${entidade.cnpj}`, left, top + 28, { width: right - left, align: 'center' });
+  if (local) doc.fontSize(10).fillColor('#304a67').text(local, left, top + 44, { width: right - left, align: 'center' });
+
+  doc.fontSize(31).fillColor('#d8e5f1').font('Helvetica-Bold').text('CRC', left, top - 2, { width: right - left, align: 'right' });
+  doc.fontSize(15).fillColor('#0f1720').font('Helvetica-Bold').text(String(title || '').toUpperCase(), left, top + 78, { align: 'center' });
+  if (subtitle) doc.fontSize(12).fillColor('#5a6b7d').font('Helvetica').text(subtitle, left, top + 99, { align: 'center' });
+
+  const lineY = subtitle ? top + 124 : top + 114;
+  doc.moveTo(left, lineY).lineTo(right, lineY).strokeColor('#b9cedf').lineWidth(1).stroke();
+  doc.fillColor('#000');
+  doc.y = lineY + 18;
+}
+
+function drawPdfFields(doc, fields = []) {
+  const left = doc.page.margins.left;
+  const right = doc.page.width - doc.page.margins.right;
+  doc.lineGap(3);
+  fields.forEach(([key, value], index) => {
+    const label = formatFieldLabel(key);
+    doc.font('Helvetica-Bold').fontSize(11).fillColor('#1a2d40').text(`${label}: `, left, doc.y, { continued: true });
+    doc.font('Helvetica').fontSize(11).fillColor('#111').text(String(value ?? '—'));
+    if (index < fields.length - 1) doc.moveDown(0.12);
+  });
+  doc.moveDown(0.7);
+  doc.moveTo(left, doc.y).lineTo(right, doc.y).strokeColor('#d4dfeb').lineWidth(0.8).stroke();
+  doc.moveDown(0.7);
+}
+
+function drawSignatureBlock(doc, { entidade, codigo, emissao }) {
+  const left = doc.page.margins.left;
+  const width = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+  const y = doc.y;
+  doc.roundedRect(left, y, width, 90, 8).fillAndStroke('#f6f9fc', '#d4dfeb');
+  doc.fillColor('#2c4d6d').font('Helvetica-Bold').fontSize(10).text('ASSINATURA ELETRONICA / AUTENTICACAO', left + 12, y + 12, { width: width - 24, align: 'center' });
+  doc.fillColor('#35516a').font('Helvetica').fontSize(9).text(`Codigo de autenticacao: ${codigo}`, left + 12, y + 32, { width: width - 24, align: 'center' });
+  doc.text(`Emitido em: ${emissao}`, left + 12, y + 46, { width: width - 24, align: 'center' });
+  doc.text(`Assinado digitalmente por ${entidade.nome} - Portal CRC`, left + 12, y + 60, { width: width - 24, align: 'center' });
+  doc.y = y + 102;
+}
+
+function buildPdfBuffer({ title, subtitle, fields = [], footer = '', entidade, codigoAutenticacao = '', emissao = '' }) {
   return new Promise((resolve) => {
     const doc = new PDFDocument({ size: 'A4', margin: 50 });
     const chunks = [];
     doc.on('data', (chunk) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
 
-    doc.fontSize(16).text('Municipio de Lauro de Freitas', { align: 'center' });
-    doc.moveDown(0.2);
-    doc.fontSize(12).text(title.toUpperCase(), { align: 'center' });
-    if (subtitle) {
-      doc.moveDown(0.3);
-      doc.fontSize(10).fillColor('#555').text(subtitle, { align: 'center' });
-      doc.fillColor('#000');
-    }
-    doc.moveDown(1.2);
-    doc.fontSize(11);
-    fields.forEach(([k, v]) => doc.text(`${k}: ${v}`));
-    doc.moveDown(1.5);
-    doc.fontSize(9).fillColor('#444').text(footer || 'Autenticidade verificavel no portal CRC.', { align: 'center' });
+    drawPdfHeader(doc, { entidade: normalizeEntidadeConfig(entidade), title, subtitle });
+    drawPdfFields(doc, fields);
+    drawSignatureBlock(doc, { entidade: normalizeEntidadeConfig(entidade), codigo: codigoAutenticacao, emissao });
+    doc.moveDown(0.4);
+    doc.fontSize(9).fillColor('#3d5874').text(footer || 'Autenticidade verificavel no portal CRC.', { align: 'center' });
     doc.end();
   });
 }
@@ -58,6 +233,7 @@ function createDocumentRecord({
   subtitulo,
   filenamePrefix,
   payload,
+  entidade,
 }) {
   const codigo = prefixoCodigo === 'CERT' ? generateCodigoCertidao() : `${prefixoCodigo}-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`;
   const emissao = new Date();
@@ -72,11 +248,13 @@ function createDocumentRecord({
     subtitulo,
     fields,
     filenamePrefix,
+    entidade: normalizeEntidadeConfig(entidade),
   };
 }
 
 async function emitDocument(res, config) {
-  const record = createDocumentRecord(config);
+  const entidade = resolveEntidadeConfig(config.entidade);
+  const record = createDocumentRecord({ ...config, entidade });
   const pdf = await buildPdfBuffer({
     title: record.titulo,
     subtitle: record.subtitulo,
@@ -86,6 +264,10 @@ async function emitDocument(res, config) {
       ['Emissao', new Date(record.emissao).toLocaleString('pt-BR')],
       ['Validade', new Date(record.validade).toLocaleDateString('pt-BR')],
     ],
+    footer: `Autenticidade verificavel no portal CRC. Codigo: ${record.codigo}`,
+    entidade,
+    codigoAutenticacao: record.codigo,
+    emissao: new Date(record.emissao).toLocaleString('pt-BR'),
   });
   documentPdfCache.set(record.codigo, pdf);
 
@@ -112,6 +294,72 @@ async function emitDocument(res, config) {
     urlAutenticacao: `/api/v1/documentos/autenticar/${encodeURIComponent(record.codigo)}`,
   });
 }
+
+router.get('/api/v1/entidade/config', (_req, res) => {
+  const store = readStore();
+  res.json({ entidade: normalizeEntidadeConfig(store.entidadeConfig || {}) });
+});
+
+router.put('/api/v1/entidade/config', (req, res) => {
+  const store = readStore();
+  store.entidadeConfig = normalizeEntidadeConfig(req.body || {});
+  writeStore(store);
+  res.json({ ok: true, entidade: store.entidadeConfig });
+});
+
+router.get('/api/v1/integracoes/tributos', (_req, res) => {
+  const store = readStore();
+  res.json({ config: normalizeTributosConfig(store.tributosConfig || {}) });
+});
+
+router.put('/api/v1/integracoes/tributos', (req, res) => {
+  const store = readStore();
+  store.tributosConfig = normalizeTributosConfig(req.body || {});
+  writeStore(store);
+  res.json({ ok: true, config: store.tributosConfig });
+});
+
+router.post('/api/v1/integracoes/tributos/testar', async (req, res) => {
+  const payloadConfig = normalizeTributosConfig(req.body || {});
+  const store = readStore();
+  const config = payloadConfig.apiBaseUrl ? payloadConfig : normalizeTributosConfig(store.tributosConfig || {});
+  if (!config.apiBaseUrl) return res.status(400).json({ ok: false, erro: 'API Base URL nao configurada.' });
+
+  const base = config.apiBaseUrl.replace(/\/+$/, '');
+  const path = config.healthPath.startsWith('/') ? config.healthPath : `/${config.healthPath}`;
+  const url = `${base}${path}`;
+  const headers = { accept: 'application/json' };
+  if (config.authToken) {
+    const authType = String(config.authType).toLowerCase();
+    if (authType === 'x-api-key') headers['x-api-key'] = config.authToken;
+    else if (authType !== 'none') headers.authorization = `Bearer ${config.authToken}`;
+  }
+
+  try {
+    const response = await fetchWithTimeout(url, { method: 'GET', headers }, config.timeoutMs);
+    const text = await response.text();
+    return res.status(response.ok ? 200 : 502).json({
+      ok: response.ok,
+      status: response.status,
+      endpoint: url,
+      respostaPreview: text.slice(0, 280),
+    });
+  } catch (err) {
+    return res.status(502).json({ ok: false, endpoint: url, erro: `Falha de conexao: ${err.message}` });
+  }
+});
+
+router.get('/api/v1/notificacoes/config', (_req, res) => {
+  const store = readStore();
+  res.json({ config: normalizeNotificacoesConfig(store.notificacoesConfig || {}) });
+});
+
+router.put('/api/v1/notificacoes/config', (req, res) => {
+  const store = readStore();
+  store.notificacoesConfig = normalizeNotificacoesConfig(req.body || {});
+  writeStore(store);
+  res.json({ ok: true, config: store.notificacoesConfig });
+});
 
 router.get('/api/v1/lgpd/termo-vigente', (_req, res) => {
   res.json({ versao: TERMO_VERSAO, hash: termoHash(), html: TERMO_HTML });
@@ -188,6 +436,69 @@ router.post('/api/v1/notificacoes/validar/enviar', (req, res) => {
   res.status(201).json({ codigoId, expiraEm, codigoDebug: codigo });
 });
 
+router.post('/api/v1/notificacoes/teste/enviar', async (req, res) => {
+  const { canal, destino } = req.body || {};
+  const mensagem = String(req.body?.mensagem || '').trim() || 'Teste de notificacao do Portal CRC.';
+  if (!canal || !destino) return res.status(400).json({ erro: 'Canal e destino sao obrigatorios.' });
+  if (!['email', 'whatsapp', 'sms'].includes(canal)) return res.status(400).json({ erro: 'Canal invalido.' });
+
+  const store = readStore();
+  const cfg = normalizeNotificacoesConfig(store.notificacoesConfig || {});
+  const webhookByCanal = {
+    email: cfg.emailWebhookUrl,
+    whatsapp: cfg.whatsappWebhookUrl,
+    sms: cfg.smsWebhookUrl,
+  };
+  const webhookUrl = webhookByCanal[canal];
+  const protocolo = `NTF-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`;
+  const historico = {
+    protocolo,
+    canal,
+    destino: String(destino),
+    mensagem,
+    enviadoEm: new Date().toISOString(),
+    status: 'simulado',
+  };
+
+  if (webhookUrl) {
+    try {
+      const response = await fetchWithTimeout(webhookUrl, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          canal,
+          destino,
+          mensagem,
+          protocolo,
+          remetente: cfg.remetentePadrao,
+        }),
+      }, 10000);
+      historico.status = response.ok ? 'enviado' : 'falha';
+      historico.webhookStatus = response.status;
+    } catch (err) {
+      historico.status = 'falha';
+      historico.erro = err.message;
+    }
+  }
+
+  store.notificacoesTesteHistorico = Array.isArray(store.notificacoesTesteHistorico) ? store.notificacoesTesteHistorico : [];
+  store.notificacoesTesteHistorico.unshift(historico);
+  store.notificacoesTesteHistorico = store.notificacoesTesteHistorico.slice(0, 100);
+  writeStore(store);
+
+  const ok = historico.status !== 'falha';
+  return res.status(ok ? 200 : 502).json({
+    ok,
+    protocolo,
+    modo: webhookUrl ? 'webhook' : 'simulado',
+    status: historico.status,
+    canal,
+    destino,
+    mensagem: ok ? 'Teste enviado com sucesso.' : 'Falha ao enviar teste.',
+    erro: historico.erro || null,
+  });
+});
+
 router.post('/api/v1/notificacoes/validar/conferir', (req, res) => {
   const { codigoId, codigo } = req.body || {};
   const state = validationCodes.get(codigoId);
@@ -227,6 +538,7 @@ router.post('/api/v1/certidoes/emitir', async (req, res) => {
       vinculo: req.body.vinculo || 'Titular',
       situacao: req.body.situacao || 'Normal',
     },
+    entidade: req.body.entidade,
   });
 });
 
@@ -244,6 +556,7 @@ router.post('/api/v1/alvaras/emitir', async (req, res) => {
       empresa: req.body.nome || 'Empresa',
       validadeInformada: req.body.validade || 'N/A',
     },
+    entidade: req.body.entidade,
   });
 });
 
@@ -260,6 +573,7 @@ router.post('/api/v1/cga/emitir', async (req, res) => {
       razaoSocial: req.body.nome || 'N/A',
       atividade: req.body.atividade || 'N/A',
     },
+    entidade: req.body.entidade,
   });
 });
 
@@ -277,6 +591,7 @@ router.post('/api/v1/documentos/2via', async (req, res) => {
       valor: req.body.valor || 'N/A',
       vencimento: req.body.vencimento || 'N/A',
     },
+    entidade: req.body.entidade,
   });
 });
 
@@ -294,10 +609,13 @@ router.post('/api/v1/financeiro/boleto', async (req, res) => {
       valor: req.body.valor || 'N/A',
       vencimento: req.body.vencimento || 'N/A',
     },
+    entidade: req.body.entidade,
   });
 });
 
 router.post('/api/v1/ficha-cadastral/pdf', async (req, res) => {
+  const payload = { ...(req.body || {}) };
+  delete payload.entidade;
   await emitDocument(res, {
     tipoDocumento: 'ficha-cadastral',
     prefixoCodigo: 'FC',
@@ -305,7 +623,8 @@ router.post('/api/v1/ficha-cadastral/pdf', async (req, res) => {
     titulo: 'Ficha Cadastral',
     subtitulo: 'Extrato cadastral consolidado',
     filenamePrefix: 'ficha-cadastral',
-    payload: req.body || {},
+    payload,
+    entidade: req.body.entidade,
   });
 });
 
@@ -331,6 +650,7 @@ router.get('/api/v1/documentos/autenticar/:codigo', (req, res) => {
   res.json({
     valida: true,
     tipo: record.titulo || record.tipoCert || record.tipoDocumento || 'Documento',
+    entidade: record.entidade || normalizeEntidadeConfig(),
     titular: 'Usuario Portal CRC',
     documento: maskDocumento('03456789012'),
     inscricao: record.inscricao || 'N/A',

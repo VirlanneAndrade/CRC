@@ -69,8 +69,10 @@ function downloadICS(title,dateStr,details){
 let currentUserType='contribuinte'; // 'contribuinte' | 'admin'
 let currentAdminLogin=''; // login do admin logado
 const notifValidationState={email:{codigoId:null,validado:false},whatsapp:{codigoId:null,validado:false},sms:{codigoId:null,validado:false}};
+const notifPageValidationState={email:{codigoId:null,validado:false},whatsapp:{codigoId:null,validado:false},sms:{codigoId:null,validado:false}};
 let lgpdPendingResolve=null;
 let systemDialogResolve=null;
+let systemDialogMode='alert';
 const MASTER_LOGIN='admin'; // login do master — único que pode excluir
 
 function inferDialogTone(message){
@@ -80,14 +82,18 @@ function inferDialogTone(message){
   return 'info';
 }
 
-function closeSystemDialog(){
+function closeSystemDialog(result=true){
   const modal=document.getElementById('modal-system');
   if(modal) modal.style.display='none';
-  if(systemDialogResolve) systemDialogResolve();
+  if(systemDialogResolve) systemDialogResolve(systemDialogMode==='confirm'?!!result:undefined);
   systemDialogResolve=null;
+  systemDialogMode='alert';
+}
+function cancelSystemDialog(){
+  closeSystemDialog(false);
 }
 
-function showSystemDialog(message,tone){
+function showSystemDialog(message,tone,mode='alert'){
   const modal=document.getElementById('modal-system');
   if(!modal){window.console.warn(message);return Promise.resolve();}
   const t=tone||inferDialogTone(message);
@@ -99,8 +105,16 @@ function showSystemDialog(message,tone){
   dialog.querySelector('.system-dialog-robot').innerHTML=robotSVG(44,expr);
   dialog.querySelector('.system-dialog-title').textContent=title;
   dialog.querySelector('.system-dialog-message').textContent=String(message||'');
+  const btnCancel=document.getElementById('system-dialog-cancel');
+  const btnOk=document.getElementById('system-dialog-ok');
+  if(btnCancel) btnCancel.style.display=mode==='confirm'?'':'none';
+  if(btnOk) btnOk.textContent=mode==='confirm'?'Confirmar':'OK';
+  systemDialogMode=mode;
   modal.style.display='flex';
   return new Promise((resolve)=>{systemDialogResolve=resolve;});
+}
+function showSystemConfirm(message,tone){
+  return showSystemDialog(message,tone||'info','confirm');
 }
 
 if(typeof window!=='undefined'){
@@ -400,15 +414,18 @@ function rejeitarLgpd(){
   lgpdPendingResolve=null;
 }
 
-function hydrateNotificacoesModal(){
+function hydrateNotificacoesBase(prefix,state){
   const prefs=JSON.parse(localStorage.getItem('crc_notif_pref')||'{}');
   const defaults={email:'usuario@exemplo.com',whatsapp:'(71) 98888-0000',sms:'(71) 97777-0000'};
   ['email','whatsapp','sms'].forEach((canal)=>{
-    const dest=document.getElementById(`notif-${canal}-destino`);
+    const dest=document.getElementById(`${prefix}-${canal}-destino`);
     if(dest) dest.value=(prefs[canal]&&prefs[canal].destino)||defaults[canal];
-    const status=document.getElementById(`notif-${canal}-status`);
+    const check=document.getElementById(`${prefix}-${canal}-check`);
+    if(check) check.checked=!!prefs[canal];
+    const status=document.getElementById(`${prefix}-${canal}-status`);
     const validado=!!(prefs[canal]&&prefs[canal].validado);
-    notifValidationState[canal].validado=validado;
+    state[canal].validado=validado;
+    state[canal].codigoId=null;
     if(status){
       status.textContent=validado?'Validado':'Aguardando validacao';
       status.className=`notif-status ${validado?'ok':''}`;
@@ -416,9 +433,12 @@ function hydrateNotificacoesModal(){
   });
 }
 
-async function enviarCodigoCanal(canal){
-  const destinoEl=document.getElementById(`notif-${canal}-destino`);
-  const statusEl=document.getElementById(`notif-${canal}-status`);
+function hydrateNotificacoesModal(){hydrateNotificacoesBase('notif',notifValidationState)}
+function hydrateNotificacoesPage(){hydrateNotificacoesBase('notif-page',notifPageValidationState)}
+
+async function enviarCodigoCanalBase(canal,prefix,state){
+  const destinoEl=document.getElementById(`${prefix}-${canal}-destino`);
+  const statusEl=document.getElementById(`${prefix}-${canal}-status`);
   const destino=(destinoEl&&destinoEl.value||'').trim();
   if(!destino){alert('Informe o destino do canal.');return;}
   const r=await fetch('/api/v1/notificacoes/validar/enviar',{
@@ -428,19 +448,21 @@ async function enviarCodigoCanal(canal){
   });
   const j=await r.json();
   if(!r.ok){alert(j.erro||'Falha ao enviar codigo.');return;}
-  notifValidationState[canal].codigoId=j.codigoId;
-  notifValidationState[canal].validado=false;
+  state[canal].codigoId=j.codigoId;
+  state[canal].validado=false;
   if(statusEl){
     statusEl.textContent='Codigo enviado';
     statusEl.className='notif-status';
   }
 }
+async function enviarCodigoCanal(canal){await enviarCodigoCanalBase(canal,'notif',notifValidationState)}
+async function enviarCodigoCanalPage(canal){await enviarCodigoCanalBase(canal,'notif-page',notifPageValidationState)}
 
-async function confirmarCodigoCanal(canal){
-  const codigoEl=document.getElementById(`notif-${canal}-codigo`);
-  const statusEl=document.getElementById(`notif-${canal}-status`);
+async function confirmarCodigoCanalBase(canal,prefix,state){
+  const codigoEl=document.getElementById(`${prefix}-${canal}-codigo`);
+  const statusEl=document.getElementById(`${prefix}-${canal}-status`);
   const codigo=(codigoEl&&codigoEl.value||'').trim();
-  const codigoId=notifValidationState[canal].codigoId;
+  const codigoId=state[canal].codigoId;
   if(!codigoId){alert('Envie o codigo primeiro.');return;}
   const r=await fetch('/api/v1/notificacoes/validar/conferir',{
     method:'POST',
@@ -448,20 +470,22 @@ async function confirmarCodigoCanal(canal){
     body:JSON.stringify({codigoId,codigo})
   });
   const j=await r.json();
-  notifValidationState[canal].validado=!!j.validado;
+  state[canal].validado=!!j.validado;
   if(statusEl){
     statusEl.textContent=j.validado?'Validado com sucesso':'Codigo invalido';
     statusEl.className=`notif-status ${j.validado?'ok':'err'}`;
   }
 }
+async function confirmarCodigoCanal(canal){await confirmarCodigoCanalBase(canal,'notif',notifValidationState)}
+async function confirmarCodigoCanalPage(canal){await confirmarCodigoCanalBase(canal,'notif-page',notifPageValidationState)}
 
-async function salvarPreferenciasNotificacao(){
+async function salvarPreferenciasNotificacaoBase(prefix,state,closeOnSuccess){
   const canais=['email','whatsapp','sms']
-    .filter((canal)=>document.getElementById(`notif-${canal}-check`)?.checked)
+    .filter((canal)=>document.getElementById(`${prefix}-${canal}-check`)?.checked)
     .map((canal)=>({
       tipo:canal,
-      destino:document.getElementById(`notif-${canal}-destino`)?.value||'',
-      validado:!!notifValidationState[canal].validado,
+      destino:document.getElementById(`${prefix}-${canal}-destino`)?.value||'',
+      validado:!!state[canal].validado,
       sincronizarPerfil:true
     }));
   const r=await fetch('/api/v1/notificacoes/preferencias',{
@@ -470,12 +494,21 @@ async function salvarPreferenciasNotificacao(){
     body:JSON.stringify({canais,tiposNotificacao:['vencimento','novoDocumento','acordoStatus']})
   });
   const j=await r.json();
-  if(!r.ok){alert(j.erro||'Nao foi possivel salvar preferencias.');return;}
+  if(!r.ok){alert(j.erro||'Nao foi possivel salvar preferencias.');return false;}
   const local={};
   canais.forEach((c)=>{local[c.tipo]={destino:c.destino,validado:c.validado};});
   localStorage.setItem('crc_notif_pref',JSON.stringify(local));
   localStorage.setItem('arrecada_notif_seen','1');
-  closeModal('modal-notif');
+  if(closeOnSuccess) closeModal('modal-notif');
+  alert('Preferências de notificação salvas com sucesso!');
+  return true;
+}
+
+async function salvarPreferenciasNotificacao(){
+  await salvarPreferenciasNotificacaoBase('notif',notifValidationState,true);
+}
+async function salvarPreferenciasNotificacaoPage(){
+  await salvarPreferenciasNotificacaoBase('notif-page',notifPageValidationState,false);
 }
 
 /* ── CHAT IA ── */
@@ -557,6 +590,7 @@ function navigate(page){
   c.innerHTML=pages[page]?pages[page]():pages.dashboard();c.scrollTop=0;
   injectBackButton(page);
   if(page==='perfil'){const p=localStorage.getItem('arrecada_photo');if(p){const pp=document.getElementById('profile-photo-main');if(pp)pp.innerHTML=`<img src="${p}">`}}
+  if(page==='notificacoes'){setTimeout(hydrateNotificacoesPage,20);}
 }
 function goBack(){
   if(navHistory.length>0){navigate(navHistory.pop());navHistory.pop();}
@@ -566,11 +600,9 @@ function injectBackButton(page){
   if(page==='dashboard')return;
   const header=document.querySelector('.page-header');
   if(!header)return;
-  const prevPage=navHistory.length>0?navHistory[navHistory.length-1]:'dashboard';
-  const prevLabel=TITLES[prevPage]||'Início';
   const btn=document.createElement('div');
   btn.className='back-nav';
-  btn.innerHTML=`<button class="back-nav-btn" onclick="goBack()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg> Voltar</button><span class="back-nav-trail"><a onclick="navigate('dashboard')" style="cursor:pointer">Início</a>${page!=='dashboard'&&prevPage!=='dashboard'?' <span class="back-sep">/</span> <a onclick="navigate(\''+prevPage+'\')" style="cursor:pointer">'+prevLabel+'</a>':''}${' <span class="back-sep">/</span> <span class="back-current">'+(TITLES[page]||page)+'</span>'}</span>`;
+  btn.innerHTML=`<button class="back-nav-btn" onclick="goBack()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg> Voltar</button><span class="back-nav-trail"><a onclick="navigate('dashboard')" style="cursor:pointer">Início</a> <span class="back-sep">/</span> <span class="back-current">${(TITLES[page]||page)}</span></span>`;
   header.insertBefore(btn,header.firstChild);
 }
 
@@ -709,6 +741,20 @@ const CERTIDOES_DATA=[
   {inscricao:'EMP-2024-00345',tipo:'Empresa',situacao:'Regular',vinculo:'Responsável',tipoCert:'Certidão Negativa'},
   {inscricao:'034.567.890-12',tipo:'PF',situacao:'Irregular',vinculo:'Titular',tipoCert:'Positiva c/ Efeito Negativa'},
 ];
+function getEntidadePayloadForApi(){
+  const c=getEntidadeConfig();
+  return {
+    nome:c.nome||'',
+    cnpj:c.cnpj||'',
+    ibge:c.ibge||'',
+    uf:c.uf||'',
+    responsavel:c.responsavel||'',
+    email:c.email||'',
+    telefone:c.telefone||'',
+    endereco:c.endereco||'',
+    logo:c.logo||''
+  };
+}
 async function emitirCertidaoPDF(idx){
   const c=CERTIDOES_DATA[idx];if(!c)return;
   const modal=document.getElementById('modal-boleto');if(!modal)return;
@@ -720,7 +766,8 @@ async function emitirCertidaoPDF(idx){
       tipo:c.tipo,
       tipoCert:c.tipoCert,
       vinculo:c.vinculo,
-      situacao:c.situacao
+      situacao:c.situacao,
+      entidade:getEntidadePayloadForApi()
     })
   });
   const payload=await response.json();
@@ -778,7 +825,7 @@ async function emitirAlvaraPDF(nome,cnpj,inscricao,validade){
   const r=await fetch('/api/v1/alvaras/emitir',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({nome,cnpj,inscricao,validade})
+    body:JSON.stringify({nome,cnpj,inscricao,validade,entidade:getEntidadePayloadForApi()})
   });
   const payload=await r.json();
   if(!r.ok){alert(payload.erro||'Falha ao emitir alvara.');return;}
@@ -812,7 +859,7 @@ async function gerarCartaoCGA(inscricao,nome,atividade){
   const r=await fetch('/api/v1/cga/emitir',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({inscricao,nome,atividade})
+    body:JSON.stringify({inscricao,nome,atividade,entidade:getEntidadePayloadForApi()})
   });
   const payload=await r.json();
   if(!r.ok){alert(payload.erro||'Falha ao emitir cartao CGA.');return;}
@@ -846,7 +893,7 @@ async function gerarBoleto(tributo,inscricao,valor,vencimento){
   const pdfResp=await fetch('/api/v1/financeiro/boleto',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({tributo,inscricao,valor,vencimento})
+    body:JSON.stringify({tributo,inscricao,valor,vencimento,entidade:getEntidadePayloadForApi()})
   });
   const pdfPayload=await pdfResp.json();
   if(!pdfResp.ok){alert(pdfPayload.erro||'Falha ao gerar boleto.');return;}
@@ -1152,7 +1199,7 @@ async function baixarFichaCadastralPdf(inscricao){
   const r=await fetch('/api/v1/ficha-cadastral/pdf',{
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify(f)
+    body:JSON.stringify({...f,entidade:getEntidadePayloadForApi()})
   });
   const payload=await r.json();
   if(!r.ok){alert(payload.erro||'Falha ao gerar PDF da ficha.');return;}
@@ -1235,24 +1282,76 @@ pages.autenticacao=()=>`<div class="module-page">
 </div>`;
 
 /* ── LEGISLAÇÃO ── */
+const LEGISLACAO_TRIBUTARIA_DATA=[
+  {tipo:'Lei',numero:'1.572/2015',ementa:'Código Tributário e de Rendas do Município (CTM/CTN Municipal)',data:'26/08/2015',url:'https://sefaz.laurodefreitas.ba.gov.br/legislacao/leis.php'},
+  {tipo:'Lei',numero:'1.958/2021',ementa:'Altera dispositivos do Código Tributário Municipal',data:'28/09/2021',url:'https://cmlf.ba.gov.br/legislacoes-e-atos/leis-municipais/lei-municipal-n%C2%BA-1958-de-28-de-setembro-de-2021'},
+  {tipo:'Lei',numero:'2.017/2022',ementa:'Atualizações no regime tributário municipal',data:'2022',url:'https://sefaz.laurodefreitas.ba.gov.br/legislacao/leis.php'},
+  {tipo:'Lei',numero:'2.052/2023',ementa:'Alterações complementares na legislação tributária',data:'19/06/2023',url:'https://www.cmlf.ba.gov.br/legislacoes-e-atos/leis-municipais/lei-municipal-n%C2%BA-2052-de-19-de-junho-de-2023'},
+  {tipo:'Decreto',numero:'5.275/2023',ementa:'Regulamentação tributária complementar',data:'2023',url:'https://sefaz.laurodefreitas.ba.gov.br/legislacao/arquivos/decreto_5275_2023.pdf'},
+  {tipo:'Portal SEFAZ',numero:'Acervo Oficial',ementa:'Repositório de leis, decretos, portarias e atos fiscais vigentes',data:'Atualizado',url:'https://sefaz.laurodefreitas.ba.gov.br/legislacao/leis.php'}
+];
+function abrirLegislacao(url){if(!url){alert('Link não disponível para este item.');return;}window.open(url,'_blank');}
 pages.legislacao=()=>`<div class="module-page">
-  <div class="page-header"><h1>Legislação</h1><p>Consulte leis, decretos e normas municipais.</p></div>
+  <div class="page-header"><h1>Legislação</h1><p>Leis do CTM/CTN Municipal e normas tributárias relacionadas de Lauro de Freitas.</p></div>
+  <div class="info-banner" style="margin-bottom:12px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>Lista prioriza o <strong>Código Tributário Municipal (Lei 1.572/2015)</strong> e leis correlatas. Para consolidação oficial, use também o acervo da SEFAZ/Câmara.</div>
   <div class="card-panel"><div class="card-panel-body" style="padding:0"><table class="data-table"><thead><tr><th>Tipo</th><th>Número</th><th>Ementa</th><th>Data</th><th>Ação</th></tr></thead><tbody>
-    <tr><td><span class="status-badge blue">Lei</span></td><td>1.890/2024</td><td>Código Tributário Municipal — CTM</td><td>15/03/2024</td><td><button class="table-action-btn primary">Abrir PDF</button></td></tr>
-    <tr><td><span class="status-badge blue">Lei</span></td><td>1.742/2022</td><td>Planta Genérica de Valores — PGV</td><td>20/12/2022</td><td><button class="table-action-btn primary">Abrir PDF</button></td></tr>
-    <tr><td><span class="status-badge orange">Decreto</span></td><td>4.567/2025</td><td>Regulamenta parcelamento de dívida ativa</td><td>10/01/2025</td><td><button class="table-action-btn primary">Abrir PDF</button></td></tr>
-    <tr><td><span class="status-badge orange">Decreto</span></td><td>4.590/2025</td><td>Calendário Fiscal 2026</td><td>15/11/2025</td><td><button class="table-action-btn primary">Abrir PDF</button></td></tr>
-    <tr><td><span class="status-badge gray">Portaria</span></td><td>012/2026</td><td>Alíquotas ISS — Tabela atualizada</td><td>05/01/2026</td><td><button class="table-action-btn primary">Abrir PDF</button></td></tr>
+    ${LEGISLACAO_TRIBUTARIA_DATA.map((l)=>`<tr><td><span class="status-badge ${l.tipo==='Lei'?'blue':l.tipo==='Decreto'?'orange':'gray'}">${l.tipo}</span></td><td>${l.numero}</td><td>${l.ementa}</td><td>${l.data}</td><td><button class="table-action-btn primary" onclick="abrirLegislacao('${l.url}')">Abrir PDF</button></td></tr>`).join('')}
   </tbody></table></div></div>
 </div>`;
 
 /* ── PROCURAÇÃO ── */
 let procuracaoView='lista';
-function getProcuracoes(){try{return JSON.parse(localStorage.getItem('crc_procuracoes'))||[
+const DEFAULT_PROCURACOES=[
   {id:1,status:'ativa',cpf:'045.678.901-23',nome:'João Carlos',vigencia:'31/12/2026',sistemas:['nfse','tributos'],tipo:'outorgada'},
   {id:2,status:'expirada',cpf:'012.345.678-90',nome:'Ana Paula',vigencia:'30/06/2025',sistemas:['certidoes'],tipo:'outorgada'},
   {id:3,status:'ativa',cpf:'078.901.234-56',nome:'Carlos Eduardo Silva',vigencia:'31/12/2026',sistemas:['certidoes','tributos','segunda_via','extrato_divida'],tipo:'recebida'}
-]}catch(e){return[]}}
+];
+function getVigenciaFimDate(vigencia){
+  const txt=String(vigencia||'').trim();
+  const m=txt.match(/(\d{2})\/(\d{2})\/(\d{4})(?!.*\d{2}\/\d{2}\/\d{4})/);
+  if(!m)return null;
+  const [,d,mo,y]=m;
+  return new Date(Number(y),Number(mo)-1,Number(d),23,59,59,999);
+}
+function normalizeProcuracoes(rawList){
+  const list=Array.isArray(rawList)?rawList:[];
+  return list.map((p,idx)=>{
+    const sistemas=Array.isArray(p?.sistemas)?p.sistemas.filter(Boolean):[];
+    const tipo=(p?.tipo==='recebida'||p?.tipo==='outorgada')?p.tipo:'outorgada';
+    const nome=String(p?.nome||'').trim()||'Sem nome';
+    const cpf=String(p?.cpf||'').trim()||'—';
+    const vigencia=String(p?.vigencia||'').trim()||'—';
+    let status=String(p?.status||'').toLowerCase();
+    if(!['ativa','expirada','revogada'].includes(status)) status='ativa';
+    if(status==='ativa'){
+      const fim=getVigenciaFimDate(vigencia);
+      if(fim&&fim<new Date()) status='expirada';
+    }
+    return {
+      ...p,
+      id:p?.id||Date.now()+idx,
+      tipo,
+      nome,
+      cpf,
+      vigencia,
+      sistemas,
+      status
+    };
+  });
+}
+function getProcuracoes(){
+  try{
+    const raw=JSON.parse(localStorage.getItem('crc_procuracoes'));
+    const base=(Array.isArray(raw)&&raw.length)?raw:DEFAULT_PROCURACOES;
+    const normalized=normalizeProcuracoes(base);
+    localStorage.setItem('crc_procuracoes',JSON.stringify(normalized));
+    return normalized;
+  }catch(e){
+    const fallback=normalizeProcuracoes(DEFAULT_PROCURACOES);
+    localStorage.setItem('crc_procuracoes',JSON.stringify(fallback));
+    return fallback;
+  }
+}
 function saveProcuracoes(p){localStorage.setItem('crc_procuracoes',JSON.stringify(p))}
 function getProcuradorAtivo(){try{return JSON.parse(localStorage.getItem('crc_procurador_ativo'))||null}catch(e){return null}}
 function setProcuradorAtivo(p){
@@ -1328,11 +1427,12 @@ function logProcurador(acao,detalhes){
   localStorage.setItem('crc_proc_logs',JSON.stringify(logs));
 }
 function getProcLogs(){try{return JSON.parse(localStorage.getItem('crc_proc_logs'))||[]}catch(e){return[]}}
-function ativarProcurador(id){
+async function ativarProcurador(id){
   const procs=getProcuracoes().filter(p=>p.tipo==='recebida'&&p.status==='ativa');
   const proc=procs.find(p=>p.id===id);
   if(!proc){alert('Procuração não encontrada.');return}
-  if(!confirm('Você irá acessar o portal como procurador de '+proc.nome+'.\nVocê terá acesso APENAS aos módulos autorizados:\n\n'+proc.sistemas.map(s=>PROC_MODULOS[s]||s).join(', ')+'\n\nDeseja continuar?'))return;
+  const ok=await showSystemConfirm('Você irá acessar o portal como procurador de '+proc.nome+'.\nVocê terá acesso APENAS aos módulos autorizados:\n\n'+proc.sistemas.map(s=>PROC_MODULOS[s]||s).join(', ')+'\n\nDeseja continuar?','info');
+  if(!ok)return;
   const outorgante=getOutorganteData();
   setProcuradorAtivo({
     id:proc.id,
@@ -1366,8 +1466,29 @@ function salvarNovaProcuracao(){
   alert('Procuração criada! Será validada com assinatura Gov.BR.');
   procuracaoView='lista';navigate('procuracao');
 }
-function cancelarProcuracao(id){
-  if(!confirm('Revogar esta procuração?'))return;
+function visualizarProcuracao(id){
+  const proc=getProcuracoes().find((p)=>p.id===id);
+  if(!proc){alert('Procuração não encontrada.');return;}
+  const modal=document.getElementById('modal-boleto');
+  if(!modal)return;
+  modal.querySelector('.modal').innerHTML=`
+    <div class="modal-header"><h2>Detalhes da Procuração</h2><button class="modal-close" onclick="closeModal('modal-boleto')">&times;</button></div>
+    <div class="modal-body">
+      <div class="grid-2-gap8" style="font-size:.85rem">
+        <div><strong>Status:</strong> ${proc.status}</div>
+        <div><strong>Tipo:</strong> ${proc.tipo}</div>
+        <div><strong>Nome:</strong> ${proc.nome}</div>
+        <div><strong>CPF/CNPJ:</strong> ${proc.cpf}</div>
+        <div><strong>Vigência:</strong> ${proc.vigencia}</div>
+        <div><strong>Módulos:</strong> ${(proc.sistemas||[]).map(s=>PROC_MODULOS[s]||s).join(', ')||'—'}</div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-boleto')">Fechar</button></div>`;
+  showModal('modal-boleto');
+}
+async function cancelarProcuracao(id){
+  const ok=await showSystemConfirm('Revogar esta procuração?','error');
+  if(!ok)return;
   const procs=getProcuracoes().map(p=>p.id===id?{...p,status:'revogada'}:p);
   saveProcuracoes(procs);navigate('procuracao');
 }
@@ -1387,20 +1508,26 @@ pages.procuracao=()=>{
   const procs=getProcuracoes();
   const outorgadas=procs.filter(p=>p.tipo==='outorgada');
   const recebidas=procs.filter(p=>p.tipo==='recebida');
+  const outorgadasAtivas=outorgadas.filter(p=>p.status==='ativa').length;
+  const recebidasAtivas=recebidas.filter(p=>p.status==='ativa').length;
   const procAtivo=getProcuradorAtivo();
   const statusBadge={ativa:'green',expirada:'gray',revogada:'red'};
   return `<div class="module-page">
   <div class="page-header"><h1>Procuração Eletrônica</h1><p>Outorgue poderes ou acesse o portal como procurador de outra pessoa.</p></div>
   <div class="info-banner warning"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Procurações são validadas via <strong>assinatura Gov.BR</strong> (nível Ouro ou certificado digital).</div>
+  <div class="grid-2-gap14" style="margin-bottom:14px">
+    <div class="card-panel" style="margin-bottom:0"><div class="card-panel-body" style="padding:12px 14px"><div style="font-size:.74rem;color:var(--text-muted)">Outorgadas ativas</div><div style="font-size:1.25rem;font-weight:800;color:var(--accent)">${outorgadasAtivas}</div></div></div>
+    <div class="card-panel" style="margin-bottom:0"><div class="card-panel-body" style="padding:12px 14px"><div style="font-size:.74rem;color:var(--text-muted)">Recebidas ativas</div><div style="font-size:1.25rem;font-weight:800;color:var(--accent)">${recebidasAtivas}</div></div></div>
+  </div>
 
   ${procAtivo?`<div class="info-banner" style="margin-bottom:16px;background:var(--orange-light);border-color:var(--orange);color:var(--orange)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><strong>Acessando como procurador de: ${procAtivo.nome}</strong> — <a href="#" onclick="desativarProcurador();return false" style="color:var(--danger);font-weight:700;margin-left:8px">Voltar ao meu perfil</a></div>`:''}
 
   <div class="card-panel" style="margin-bottom:16px"><div class="card-panel-header"><h3>Procurações Outorgadas (que dei)</h3><button class="btn btn-sm btn-primary" onclick="showNovaProcuracao()">+ Nova Procuração</button></div><div class="card-panel-body" style="padding:0;overflow-x:auto"><table class="data-table"><thead><tr><th>Status</th><th>Procurador</th><th>CPF</th><th>Vigência</th><th>Sistemas</th><th>Ações</th></tr></thead><tbody>
-    ${outorgadas.length?outorgadas.map(p=>`<tr><td><span class="status-badge ${statusBadge[p.status]||'gray'}">${p.status.charAt(0).toUpperCase()+p.status.slice(1)}</span></td><td style="font-weight:600">${p.nome}</td><td>${p.cpf}</td><td>${p.vigencia}</td><td>${p.sistemas.map(s=>PROC_MODULOS[s]||s).join(', ')}</td><td class="table-actions">${p.status==='ativa'?`<button class="table-action-btn" onclick="cancelarProcuracao(${p.id})">Revogar</button>`:'—'}</td></tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px">Nenhuma procuração outorgada</td></tr>'}
+    ${outorgadas.length?outorgadas.map(p=>`<tr><td><span class="status-badge ${statusBadge[p.status]||'gray'}">${p.status.charAt(0).toUpperCase()+p.status.slice(1)}</span></td><td style="font-weight:600">${p.nome}</td><td>${p.cpf}</td><td>${p.vigencia}</td><td>${p.sistemas.map(s=>PROC_MODULOS[s]||s).join(', ')}</td><td class="table-actions"><button class="table-action-btn" onclick="visualizarProcuracao(${p.id})">Visualizar</button>${p.status==='ativa'?`<button class="table-action-btn" onclick="cancelarProcuracao(${p.id})">Revogar</button>`:''}</td></tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px">Nenhuma procuração outorgada</td></tr>'}
   </tbody></table></div></div>
 
   <div class="card-panel"><div class="card-panel-header"><h3>Procurações Recebidas (que recebi)</h3></div><div class="card-panel-body" style="padding:0;overflow-x:auto"><table class="data-table"><thead><tr><th>Status</th><th>Outorgante</th><th>CPF</th><th>Vigência</th><th>Sistemas</th><th>Ações</th></tr></thead><tbody>
-    ${recebidas.length?recebidas.map(p=>`<tr><td><span class="status-badge ${statusBadge[p.status]||'gray'}">${p.status.charAt(0).toUpperCase()+p.status.slice(1)}</span></td><td style="font-weight:600">${p.nome}</td><td>${p.cpf}</td><td>${p.vigencia}</td><td>${p.sistemas.map(s=>PROC_MODULOS[s]||s).join(', ')}</td><td class="table-actions">${p.status==='ativa'?`<button class="table-action-btn primary" onclick="ativarProcurador(${p.id})">Acessar como</button>`:'—'}</td></tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px">Nenhuma procuração recebida</td></tr>'}
+    ${recebidas.length?recebidas.map(p=>`<tr><td><span class="status-badge ${statusBadge[p.status]||'gray'}">${p.status.charAt(0).toUpperCase()+p.status.slice(1)}</span></td><td style="font-weight:600">${p.nome}</td><td>${p.cpf}</td><td>${p.vigencia}</td><td>${p.sistemas.map(s=>PROC_MODULOS[s]||s).join(', ')}</td><td class="table-actions"><button class="table-action-btn" onclick="visualizarProcuracao(${p.id})">Visualizar</button>${p.status==='ativa'?`<button class="table-action-btn primary" onclick="ativarProcurador(${p.id})">Acessar como</button>`:''}</td></tr>`).join(''):'<tr><td colspan="6" style="text-align:center;color:var(--text-muted);padding:20px">Nenhuma procuração recebida</td></tr>'}
   </tbody></table></div></div>
 </div>`;
 };
@@ -1640,51 +1767,295 @@ pages._protocolo_novo=()=>`<div class="module-page">
   </div></div>
 </div>`;
 
-/* ── DEC ── */
+/* ── DEC (layout completo) ── */
 const DEC_MENSAGENS=[
-  {id:1,data:'08/03/26',assunto:'Lançamento IPTU 2026',tipo:'Lançamento',lida:false,ciencia:null,remetente:'Secretaria de Fazenda',conteudo:'Prezado(a) Contribuinte,\n\nInformamos que o lançamento do IPTU referente ao exercício de 2026 já está disponível.\n\nImóvel: Rua das Palmeiras, 234 — Centro\nInscrição: 001.023.045.001\nValor Venal: R$ 285.000,00\nValor IPTU 2026: R$ 1.929,30\n\nO carnê pode ser acessado na seção "2ª Via de Documentos".\n\nPrazos de pagamento:\n- Cota Única com desconto: 15/02/2026\n- 1ª Parcela: 15/02/2026\n- Demais parcelas: dia 15 de cada mês\n\nEm caso de dúvidas, entre em contato pelo portal ou compareça ao atendimento presencial.\n\nAtenciosamente,\nSecretaria Municipal de Fazenda'},
-  {id:2,data:'15/02/26',assunto:'Prazo Recolhimento ISS — Competência 01/2026',tipo:'Comunicado',lida:true,ciencia:'15/02/2026 10:32',remetente:'Divisão de ISS',conteudo:'Prezado(a) Contribuinte,\n\nLembramos que o prazo para recolhimento do ISS referente à competência Janeiro/2026 encerra-se em 20/02/2026.\n\nEmpresa: Empresa Alpha Comércio LTDA\nInscrição: EMP-2024-00345\nRegime: Simples Nacional\n\nA guia pode ser emitida na seção "NFSe" do portal.\n\nA não-quitação no prazo acarretará multa moratória de 2% e juros de 1% ao mês, conforme Código Tributário Municipal.\n\nAtenciosamente,\nDivisão de ISS'},
-  {id:3,data:'01/01/26',assunto:'Obrigatoriedade DTE — Cadastro Confirmado',tipo:'Notificação',lida:true,ciencia:'02/01/2026 14:15',remetente:'Prefeitura Municipal',conteudo:'Prezado(a) Contribuinte,\n\nConfirmamos seu cadastro no Domicílio Tributário Eletrônico (DTE) do Município.\n\nA partir desta data, todas as comunicações oficiais da Fazenda Municipal serão enviadas por este canal.\n\nÉ sua responsabilidade acessar regularmente esta caixa. As notificações são consideradas entregues após 15 dias corridos do envio, independente de leitura.\n\nFundamento Legal: Lei Municipal nº 1.234/2024, Art. 5º\n\nAtenciosamente,\nPrefeitura Municipal'},
+  {
+    id:1,
+    numero:'NOT-2026-000123',
+    assunto:'Divergência de base de cálculo — competência 01/2026',
+    subtipo:'Notificação fiscal',
+    origem:'EQFIS',
+    dataEnvio:'01/04/2026, 10:00:00',
+    primeiraVisualizacao:'27/04/2026, 11:05:51',
+    cienciaTipo:'tacita',
+    ciencia:'16/04/2026, 10:00:00',
+    lida:true,
+    prazoLeitura:'até 16/04/2026, 10:00:00 (15 dias)',
+    prazoRegularizacao:'30 dias após a ciência',
+    statusLinha:'Ciência tácita',
+    contribuinte:'qualquer',
+    cpfCnpj:'45.434.331/0001-63',
+    valorDivergencia:'R$ 12.450,00',
+    malhaTitulo:'Malha fiscal — base de cálculo do ISS',
+    malhaSubtitulo:'Inconsistência apontada entre documentos fiscais e valores declarados.',
+    descricao:'Em auditoria dos documentos fiscais do período 01/2026, foi identificada divergência na base de cálculo do ISS por não inclusão de receitas em operação interestadual.',
+    fundamento:'Art. 3º da legislação municipal de ISS. IN aplicável: Código Tributário Municipal.',
+    conduta:'Regularizar a base de cálculo, apresentar documentação comprobatória ou contestar formalmente no prazo legal.',
+    observacao:'Processo digital nº 2026-PROC-8891.',
+    periodos:[{competencia:'2026-01',bcNfse:'R$ 10.000,00',bcPgdas:'R$ 8.200,00',diferenca:'-R$ 1.800,00',status:'pendente'},{competencia:'2026-02',bcNfse:'R$ 11.500,00',bcPgdas:'R$ 11.500,00',diferenca:'R$ 0,00',status:'pendente'}],
+    fiscalNome:'Mariana Alves Costa',
+    fiscalCargo:'Auditora Fiscal — ISS · mat. AF-8841',
+    hashAssinatura:'5e4de5c942a1741f5f88ae7f48b1b971250f9ff8f1943a446e6d9253a8d455a2',
+    anexos:[{nome:'notificacao-NOT-2026-000123.pdf',url:'#'},{nome:'memoria-calculo-iss-2026-01.xlsx',url:'#'}]
+  },
+  {
+    id:2,
+    numero:'NOT-2026-000456',
+    assunto:'Divergência em retenção na fonte — competências 2025',
+    subtipo:'Intimação',
+    origem:'Fisco municipal',
+    dataEnvio:'10/01/2026, 09:30:00',
+    primeiraVisualizacao:'22/04/2026, 11:32:30',
+    cienciaTipo:'tacita',
+    ciencia:'25/01/2026, 09:30:00',
+    lida:true,
+    prazoLeitura:'até 25/01/2026, 09:30:00 (15 dias)',
+    prazoRegularizacao:'20 dias após a ciência',
+    statusLinha:'Ciência tácita',
+    contribuinte:'qualquer',
+    cpfCnpj:'45.434.331/0001-63',
+    valorDivergencia:'R$ 4.980,00',
+    malhaTitulo:'Malha fiscal — retenção de ISS',
+    malhaSubtitulo:'Diferença entre valores retidos e declarados em competência anterior.',
+    descricao:'Foram identificadas inconsistências em retenções de ISS declaradas no período 2025.',
+    fundamento:'Código Tributário Municipal e normas complementares de retenção ISS.',
+    conduta:'Retificar declaração ou apresentar justificativa formal com anexos comprobatórios.',
+    observacao:'Atendimento preferencial por protocolo eletrônico.',
+    periodos:[{competencia:'2025-09',bcNfse:'R$ 7.400,00',bcPgdas:'R$ 6.100,00',diferenca:'-R$ 1.300,00',status:'pendente'}],
+    fiscalNome:'Roberto Lima',
+    fiscalCargo:'Auditor Fiscal — ISS · mat. AF-7744',
+    hashAssinatura:'22e8ca6fb57ea4f7a7fce6c5af44c0be18b196c866f8f282a0f20a897a5e3310',
+    anexos:[{nome:'notificacao-NOT-2026-000456.pdf',url:'#'}]
+  },
+  {
+    id:3,
+    numero:'NOT-2026-001024',
+    assunto:'Pendência no endereço fiscal e CNAE principal',
+    subtipo:'Notificação de divergência cadastral',
+    origem:'Fisco municipal',
+    dataEnvio:'18/05/2026, 09:45:00',
+    primeiraVisualizacao:'Não visualizada',
+    cienciaTipo:'efetiva',
+    ciencia:'18/05/2026, 16:40:02',
+    lida:false,
+    prazoLeitura:'até 02/06/2026, 09:45:00 (15 dias)',
+    prazoRegularizacao:'20 dias após a ciência',
+    statusLinha:'Ciência efetiva',
+    contribuinte:'qualquer',
+    cpfCnpj:'45.434.331/0001-63',
+    valorDivergencia:'R$ 0,00',
+    malhaTitulo:'Malha cadastral',
+    malhaSubtitulo:'Divergência entre cadastro econômico e declarações recentes.',
+    descricao:'Foi identificada inconsistência entre o endereço fiscal informado no cadastro municipal e os dados declarados no portal, além de divergência no CNAE principal ativo.',
+    fundamento:'Código Tributário Municipal e normas cadastrais vigentes.',
+    conduta:'Atualizar o cadastro econômico com documentação comprobatória ou apresentar justificativa formal no prazo regulamentar.',
+    observacao:'Atendimento preferencial por protocolo eletrônico.',
+    periodos:[],
+    fiscalNome:'Fernanda Ramos',
+    fiscalCargo:'Auditora Fiscal — Cadastro · mat. AF-9317',
+    hashAssinatura:'6d3eec5d3fcf6c45fe5e13f58165046bf8136cc6bdc1a8266b557f77e36b3e19',
+    anexos:[{nome:'notificacao-NOT-2026-001024.pdf',url:'#'}]
+  },
 ];
-function getDECMensagens(){const saved=localStorage.getItem('crc_dec_msgs');return saved?JSON.parse(saved):DEC_MENSAGENS}
+function getDECMensagens(){
+  try{
+    const contribuinteAtual=getContribuinteLogado()||{};
+    const contribuinteNome=contribuinteAtual.nome||'Contribuinte';
+    const contribuinteDocumento=contribuinteAtual.cpf||contribuinteAtual.cnpj||contribuinteAtual.cpfCnpj||'—';
+    const raw=JSON.parse(localStorage.getItem('crc_dec_msgs'));
+    const list=(Array.isArray(raw)&&raw.length)?raw:DEC_MENSAGENS;
+    return list.map((m,idx)=>{
+      const base=DEC_MENSAGENS.find((d)=>d.id===m?.id)||DEC_MENSAGENS[idx%DEC_MENSAGENS.length];
+      const dataEnvio=m?.dataEnvio||((m?.data)?`${m.data}, 10:00:00`:base.dataEnvio);
+      const primeiraVisualizacao=(m?.primeiraVisualizacao!==undefined)?m.primeiraVisualizacao:(m?.ciencia||base.primeiraVisualizacao||'Não visualizada');
+      return {
+        ...base,
+        ...m,
+        numero:m?.numero||base.numero||`NOT-${new Date().getFullYear()}-${String(m?.id||idx+1).padStart(6,'0')}`,
+        assunto:m?.assunto||base.assunto||'Notificação fiscal',
+        subtipo:m?.subtipo||m?.tipo||base.subtipo||'Notificação',
+        dataEnvio,
+        origem:m?.origem||base.origem||'Fisco municipal',
+        primeiraVisualizacao,
+        contribuinte:contribuinteNome,
+        cpfCnpj:contribuinteDocumento,
+        valorDivergencia:m?.valorDivergencia||base.valorDivergencia||'R$ 0,00',
+        prazoLeitura:m?.prazoLeitura||base.prazoLeitura||'15 dias',
+        prazoRegularizacao:m?.prazoRegularizacao||base.prazoRegularizacao||'30 dias após a ciência',
+        cienciaTipo:m?.cienciaTipo||(m?.ciencia?'efetiva':'tacita'),
+        ciencia:m?.ciencia||base.ciencia||'—',
+        lida:typeof m?.lida==='boolean'?m.lida:!!m?.ciencia,
+        anexos:Array.isArray(m?.anexos)?m.anexos:(Array.isArray(base.anexos)?base.anexos:[]),
+        periodos:Array.isArray(m?.periodos)?m.periodos:(Array.isArray(base.periodos)?base.periodos:[]),
+        contestacao:m?.contestacao||null
+      };
+    });
+  }catch(_e){return DEC_MENSAGENS}
+}
 function saveDECMensagens(m){localStorage.setItem('crc_dec_msgs',JSON.stringify(m))}
 let decLendoId=null;
-function lerDEC(id){decLendoId=id;navigate('dec')}
-function voltarDECLista(){decLendoId=null;navigate('dec')}
+let decContestacaoAberta=false;
+function lerDEC(id){decLendoId=id;decContestacaoAberta=false;navigate('dec')}
+function voltarDECLista(){decLendoId=null;decContestacaoAberta=false;navigate('dec')}
 function registrarCienciaDEC(id){
   const msgs=getDECMensagens();
   const m=msgs.find(x=>x.id===id);
-  if(m){m.lida=true;m.ciencia=new Date().toLocaleString('pt-BR');saveDECMensagens(msgs);navigate('dec')}
+  if(!m)return;
+  m.lida=true;
+  m.cienciaTipo='efetiva';
+  m.ciencia=new Date().toLocaleString('pt-BR');
+  m.statusLinha='Ciência efetiva';
+  if(m.primeiraVisualizacao==='Não visualizada') m.primeiraVisualizacao=m.ciencia;
+  saveDECMensagens(msgs);
+  navigate('dec');
+}
+function abrirContestacaoDEC(){decContestacaoAberta=true;navigate('dec')}
+function fecharContestacaoDEC(){decContestacaoAberta=false;navigate('dec')}
+function onContestacaoArquivosChange(){
+  const input=document.getElementById('dec-contest-arquivos');
+  const list=document.getElementById('dec-contest-arquivos-lista');
+  if(!list)return;
+  const files=Array.from(input?.files||[]);
+  const formatSize=(bytes)=>{
+    if(!Number.isFinite(bytes)||bytes<=0)return '';
+    if(bytes<1024)return `${bytes} B`;
+    if(bytes<1024*1024)return `${(bytes/1024).toFixed(1)} KB`;
+    return `${(bytes/(1024*1024)).toFixed(1)} MB`;
+  };
+  list.innerHTML=files.length
+    ?files.map((f)=>`<div class="dec-upload-item"><span class="dec-upload-item-name">📎 ${f.name}</span><span class="dec-upload-item-size">${formatSize(f.size)}</span></div>`).join('')
+    :'<div class="dec-upload-empty">Nenhum arquivo anexado ainda.</div>';
+}
+function protocolarContestacaoDEC(id){
+  const fundamento=document.getElementById('dec-contest-fundamento')?.value.trim()||'';
+  if(!fundamento){alert('Preencha a fundamentação da contestação.');return;}
+  const msgs=getDECMensagens();
+  const m=msgs.find((x)=>x.id===id);
+  if(!m)return;
+  m.contestacao={
+    protocolo:`DTE-CONTEST-${new Date().getFullYear()}-${String(Math.floor(Math.random()*100000)).padStart(5,'0')}`,
+    fundamento,
+    dataHora:new Date().toLocaleString('pt-BR'),
+    arquivos:(Array.from(document.getElementById('dec-contest-arquivos')?.files||[]).map((f)=>f.name))
+  };
+  saveDECMensagens(msgs);
+  decContestacaoAberta=false;
+  alert(`Contestação protocolada com sucesso. Protocolo: ${m.contestacao.protocolo}`);
+  navigate('dec');
+}
+function renderStatusCienciaTag(tipo){
+  if(tipo==='efetiva') return '<span class="dec-status-pill dec-status-pill--ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>Ciência efetiva</span>';
+  return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:.7rem;background:rgba(255,196,71,.2);color:#8a6a00;font-weight:700">Ciência tácita</span>';
 }
 pages.dec=()=>{
   const msgs=getDECMensagens();
-  if(decLendoId){
-    const m=msgs.find(x=>x.id===decLendoId);
-    if(!m){decLendoId=null;return pages.dec()}
-    if(!m.lida){m.lida=true;saveDECMensagens(msgs)}
+  if(!decLendoId){
+    const total=msgs.length;
+    const efetiva=msgs.filter((m)=>m.cienciaTipo==='efetiva').length;
+    const tacita=msgs.filter((m)=>m.cienciaTipo==='tacita').length;
     return `<div class="module-page">
-    <div class="page-header"><h1>Domicílio Eletrônico</h1><p>${m.assunto}</p></div>
-    <button class="btn btn-ghost btn-sm" onclick="voltarDECLista()" style="margin-bottom:14px">\u2190 Voltar</button>
-    <div class="card-panel"><div class="card-panel-header"><h3>${m.assunto}</h3><span class="status-badge ${m.ciencia?'green':'orange'}">${m.ciencia?'Ci\u00eancia registrada':'Pendente de ci\u00eancia'}</span></div>
-    <div class="card-panel-body">
-      <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:16px;font-size:.84rem;color:var(--text-muted)">
-        <div><strong>Remetente:</strong> ${m.remetente}</div>
-        <div><strong>Data:</strong> ${m.data}</div>
-        <div><strong>Tipo:</strong> ${m.tipo}</div>
-        ${m.ciencia?'<div><strong>Ci\u00eancia em:</strong> '+m.ciencia+'</div>':''}
-      </div>
-      <div style="white-space:pre-wrap;font-size:.88rem;line-height:1.6;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:8px">${m.conteudo}</div>
-      ${!m.ciencia?'<div style="margin-top:16px;text-align:center"><div class="info-banner" style="margin-bottom:12px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>Ao registrar ci\u00eancia, voc\u00ea confirma que tomou conhecimento desta notifica\u00e7\u00e3o. Data e hora ser\u00e3o registradas.</div><button class="btn btn-primary" onclick="registrarCienciaDEC('+m.id+')">Registrar Ci\u00eancia</button></div>':''}
+    <div class="page-header"><h1>Olá, ${((getContribuinteLogado()||{}).nome||'qualquer').split(' ')[0].toLowerCase()}</h1><p>Lista de notificações fiscais destinadas ao seu cadastro.</p></div>
+    <div class="grid-3" style="margin-bottom:14px">
+      <div class="card-panel" style="margin:0"><div class="card-panel-body" style="padding:14px"><div style="font-size:1.5rem;font-weight:800;color:#7f5ac8">${total}</div><div style="font-size:.78rem;color:var(--text-muted)">Notificações</div></div></div>
+      <div class="card-panel" style="margin:0"><div class="card-panel-body" style="padding:14px"><div style="font-size:1.5rem;font-weight:800;color:#7f5ac8">${efetiva}</div><div style="font-size:.78rem;color:var(--text-muted)">Ciência efetiva</div></div></div>
+      <div class="card-panel" style="margin:0"><div class="card-panel-body" style="padding:14px"><div style="font-size:1.5rem;font-weight:800;color:#7f5ac8">${tacita}</div><div style="font-size:.78rem;color:var(--text-muted)">Ciência tácita</div></div></div>
+    </div>
+    <div class="card-panel"><div class="card-panel-header"><h3>Suas notificações</h3></div><div class="card-panel-body">
+      ${msgs.map((m)=>`<div class="card-panel" style="margin-bottom:10px;cursor:pointer" onclick="lerDEC(${m.id})"><div class="card-panel-body" style="padding:12px 14px;display:flex;justify-content:space-between;gap:14px;align-items:flex-start"><div><div style="font-weight:800">${m.numero} — <span style="font-weight:500">${m.assunto}</span></div><div style="font-size:.78rem;color:var(--text-muted)">${m.subtipo} · Emitida em ${String(m.dataEnvio||'—').split(',')[0]} · Origem: ${m.origem||'Fisco municipal'}</div><div style="margin-top:6px">${renderStatusCienciaTag(m.cienciaTipo)}</div></div><div style="font-size:.74rem;color:var(--text-muted);text-align:right"><div>1ª visualização:</div><div>${m.primeiraVisualizacao||'Não visualizada'}</div></div></div></div>`).join('')}
     </div></div>
   </div>`;
   }
+  const m=msgs.find((x)=>x.id===decLendoId);
+  if(!m){decLendoId=null;return pages.dec();}
+  if(!m.lida){
+    m.lida=true;
+    if(m.primeiraVisualizacao==='Não visualizada') m.primeiraVisualizacao=new Date().toLocaleString('pt-BR');
+    saveDECMensagens(msgs);
+  }
+  const mostraContestacao=decContestacaoAberta;
   return `<div class="module-page">
-  <div class="page-header"><h1>Domic\u00edlio Eletr\u00f4nico</h1><p>Canal oficial digital com a Prefeitura. Notifica\u00e7\u00f5es com valor jur\u00eddico — registre ci\u00eancia.</p></div>
-  <div class="info-banner" style="margin-bottom:14px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>As notifica\u00e7\u00f5es do DTE t\u00eam <strong>valor jur\u00eddico</strong>. Ap\u00f3s 15 dias do envio s\u00e3o consideradas entregues, mesmo sem leitura.</div>
-  <div class="card-panel"><div class="card-panel-body" style="padding:0;overflow-x:auto"><table class="data-table"><thead><tr><th>Data</th><th>Assunto</th><th>Tipo</th><th>Status</th><th>Ci\u00eancia</th><th>A\u00e7\u00f5es</th></tr></thead><tbody>
-    ${msgs.map(m=>`<tr${!m.lida?' style="background:var(--accent-glow2)"':''}><td>${m.data}</td><td${!m.lida?' style="font-weight:700"':''}>${m.assunto}</td><td>${m.tipo}</td><td><span class="status-badge ${!m.lida?'red':m.ciencia?'green':'orange'}">${!m.lida?'N\u00e3o Lida':m.ciencia?'Ci\u00eancia':'Lida'}</span></td><td style="font-size:.78rem">${m.ciencia||'\u2014'}</td><td class="table-actions"><button class="table-action-btn ${!m.lida?'primary':''}" onclick="lerDEC(${m.id})">${!m.lida?'Ler':'Ver'}</button>${!m.ciencia?'<button class="table-action-btn primary" onclick="registrarCienciaDEC('+m.id+')">Ci\u00eancia</button>':''}</td></tr>`).join('')}
-  </tbody></table></div></div>
-</div>`};
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn btn-ghost btn-sm" onclick="voltarDECLista()">← Todas as notificações</button>
+      <div style="font-size:.75rem;color:var(--text-muted)">Contribuinte: <strong>${m.contribuinte}</strong> · CPF/CNPJ: <strong>${m.cpfCnpj}</strong></div>
+    </div>
+    <div class="card-panel"><div class="card-panel-body" style="padding:0">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border-light)">
+        <div style="font-size:.72rem;color:var(--text-muted)">NOTIFICAÇÃO FISCAL</div>
+        <div style="font-size:1.35rem;font-weight:900">${m.numero}</div>
+        <div style="font-size:.86rem;color:var(--text-secondary)">${m.assunto}</div>
+      </div>
+      <div class="dec-ciencia-banner ${m.cienciaTipo==='efetiva'?'is-efetiva':'is-tacita'}">
+        ${m.cienciaTipo==='efetiva'
+          ?`<div class="dec-ciencia-banner-title"><span class="dec-ciencia-check"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></span>CIÊNCIA EFETIVA REGISTRADA</div>`
+          :`<div class="dec-ciencia-banner-title">CIÊNCIA TÁCITA</div>`
+        }
+        <div class="dec-ciencia-banner-ref">Referência: ${m.ciencia}</div>
+      </div>
+      <div style="padding:10px 14px;background:rgba(179,60,87,.12);border-bottom:1px solid rgba(179,60,87,.2)">
+        <div style="font-weight:700;color:#9d2748">${m.malhaTitulo}</div>
+        <div style="font-size:.76rem;color:var(--text-secondary)">${m.malhaSubtitulo}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:${mostraContestacao?'1fr 1fr':'1fr'};gap:0">
+        <div style="padding:14px 16px;border-right:${mostraContestacao?'1px solid var(--border-light)':'none'}">
+          <div class="grid-2-gap8" style="margin-bottom:10px;font-size:.84rem">
+            <div><strong>Contribuinte</strong><div>${m.contribuinte}</div></div>
+            <div><strong>CPF/CNPJ</strong><div>${m.cpfCnpj}</div></div>
+            <div><strong>N° Notificação</strong><div>${m.numero}</div></div>
+            <div><strong>Valor da divergência</strong><div style="color:var(--danger);font-weight:800">${m.valorDivergencia}</div></div>
+            <div><strong>Data de envio</strong><div>${m.dataEnvio}</div></div>
+            <div><strong>Prazo para leitura</strong><div>${m.prazoLeitura}</div></div>
+            <div><strong>Prazo para regularização</strong><div>${m.prazoRegularizacao}</div></div>
+          </div>
+          <div style="background:linear-gradient(90deg,#363ccf,#3794ff);color:#fff;padding:7px 10px;border-radius:6px 6px 0 0;font-size:.74rem;font-weight:800">TEOR DA NOTIFICAÇÃO</div>
+          <div style="padding:10px;border:1px solid var(--border-light);border-top:none">
+            <div style="font-size:.73rem;color:var(--text-muted);font-weight:700">DESCRIÇÃO / RELATO</div><div style="font-size:.83rem;margin-bottom:8px">${m.descricao}</div>
+            <div style="font-size:.73rem;color:var(--text-muted);font-weight:700">FUNDAMENTAÇÃO LEGAL</div><div style="font-size:.83rem;margin-bottom:8px">${m.fundamento}</div>
+            <div style="font-size:.73rem;color:var(--text-muted);font-weight:700">CONDUTA EXIGIDA</div><div style="font-size:.83rem;margin-bottom:8px">${m.conduta}</div>
+            <div style="font-size:.73rem;color:var(--text-muted);font-weight:700">OBSERVAÇÃO</div><div style="font-size:.83rem">${m.observacao}</div>
+          </div>
+          ${m.periodos.length?`<div style="margin-top:10px;background:linear-gradient(90deg,#2342b6,#1f56da);color:#fff;padding:6px 10px;border-radius:6px 6px 0 0;font-size:.74rem;font-weight:800">PERÍODOS DE APURAÇÃO</div><table class="data-table" style="margin:0"><thead><tr><th>Competência</th><th>BC ISS (NFSE)</th><th>BC ISS (PGDAS)</th><th>Diferença</th><th>Status</th></tr></thead><tbody>${m.periodos.map((p)=>`<tr><td>${p.competencia}</td><td>${p.bcNfse}</td><td>${p.bcPgdas}</td><td style="font-weight:700">${p.diferenca}</td><td>${p.status}</td></tr>`).join('')}</tbody></table>`:''}
+          <div style="margin-top:10px;background:linear-gradient(90deg,#3126a5,#4140bf);color:#fff;padding:6px 10px;border-radius:6px 6px 0 0;font-size:.74rem;font-weight:800">ASSINATURA DIGITAL DO FISCAL RESPONSÁVEL</div>
+          <div style="padding:10px;border:1px solid var(--border-light);border-top:none">
+            <div style="font-weight:700">${m.fiscalNome}</div>
+            <div style="font-size:.78rem;color:var(--text-secondary)">${m.fiscalCargo}</div>
+            <div style="font-size:.73rem;color:var(--text-muted);margin-top:8px;font-weight:700">IDENTIFICADOR CRIPTOGRÁFICO (SHA-256 SIMULADO)</div>
+            <input class="form-input" readonly value="${m.hashAssinatura}" style="font-family:monospace;font-size:.72rem;margin-top:4px">
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px">
+              <button class="btn btn-outline btn-sm" onclick="alert('Assinatura validada com sucesso!')">Validar assinatura</button>
+              <button class="btn btn-outline btn-sm" onclick="alert('Download da notificação em PDF em implementação.')">Baixar notificação em PDF</button>
+              <span style="font-size:.74rem;color:var(--text-muted)">Documento oficial com identificação e teor da notificação.</span>
+            </div>
+          </div>
+          <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">${(m.anexos||[]).map((a)=>`<button class="btn btn-ghost btn-sm" onclick="window.open('${a.url}','_blank')">📎 ${a.nome}</button>`).join('')}</div>
+          <div style="text-align:center;margin-top:16px">
+            <div style="font-size:.74rem;color:var(--text-muted);margin-bottom:8px">A contestação é opcional. Abra somente se quiser apresentar defesa formal.</div>
+            <button class="btn btn-primary" style="min-width:280px" onclick="abrirContestacaoDEC()">⚖️ Abrir contestação</button>
+          </div>
+        </div>
+        ${mostraContestacao?`<div style="padding:14px 16px">
+          <div style="background:#f0b429;color:#1f2933;padding:8px 10px;border-radius:6px 6px 0 0;font-size:.74rem;font-weight:800">CONTESTAÇÃO</div>
+          <div style="border:1px solid var(--border-light);border-top:none;padding:10px;background:#fffde8">
+            <div style="font-size:.78rem;line-height:1.5"><strong>Responsabilidade do contribuinte.</strong><br>Ao protocolar, declara ciência de que <strong>injúria, desacato e ofensa</strong> contra agentes públicos configuram infração e podem gerar responsabilização administrativa, civil e penal.</div>
+          </div>
+          <div class="form-group" style="margin-top:12px"><label>Fundamentação da contestação *</label><textarea id="dec-contest-fundamento" class="form-textarea" style="min-height:210px" placeholder="Explique objetivamente os motivos pelos quais discorda desta notificação.">${m.contestacao?.fundamento||''}</textarea></div>
+          <div class="form-group"><label>Documentos comprobatórios</label>
+            <div class="dec-upload">
+              <input id="dec-contest-arquivos" type="file" class="dec-upload-input" multiple onchange="onContestacaoArquivosChange()">
+              <label class="dec-upload-trigger" for="dec-contest-arquivos">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <span>Selecionar documentos</span>
+              </label>
+              <div class="dec-upload-hint">PDF, JPG, PNG, DOC e DOCX.</div>
+            </div>
+          </div>
+          <div id="dec-contest-arquivos-lista" class="dec-upload-list">${m.contestacao?.arquivos?.length?m.contestacao.arquivos.map((n)=>`<div class="dec-upload-item"><span class="dec-upload-item-name">📎 ${n}</span></div>`).join(''):'<div class="dec-upload-empty">Nenhum arquivo anexado ainda.</div>'}</div>
+          ${m.contestacao?`<div class="info-banner" style="margin-top:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>Contestação já protocolada: <strong>${m.contestacao.protocolo}</strong> em ${m.contestacao.dataHora}.</div>`:''}
+          <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn btn-ghost btn-sm" onclick="fecharContestacaoDEC()">Fechar formulário</button><button class="btn btn-primary btn-sm" onclick="protocolarContestacaoDEC(${m.id})">Protocolar contestação</button></div>
+        </div>`:''}
+      </div>
+    </div></div>
+  </div>`;
+};
 
 /* ── CAIXA POSTAL ── */
 const CP_MENSAGENS=[
@@ -1743,6 +2114,29 @@ function enviarSolicitacaoLGPD(){
   alert('Solicitação '+num+' registrada com sucesso! Prazo de resposta: até 15 dias úteis conforme LGPD.');
   lgpdView='lista';navigate('formulario_lgpd');
 }
+
+async function enviarTesteAlerta(canal,prefix='notif-admin'){
+  const destinoEl=document.getElementById(`${prefix}-${canal}-destino`);
+  const statusEl=document.getElementById(`${prefix}-${canal}-status`);
+  const destino=(destinoEl?.value||'').trim();
+  if(!destino){alert('Informe o destino para teste.');return;}
+  const mensagem=`Teste de alerta ${canal.toUpperCase()} enviado pelo perfil ${(localStorage.getItem('crc_admin_perfil')||'admin').toUpperCase()}.`;
+  if(statusEl){statusEl.textContent='Enviando...';statusEl.className='notif-status';}
+  const r=await fetch('/api/v1/notificacoes/teste/enviar',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({canal,destino,mensagem})
+  });
+  const j=await r.json().catch(()=>({}));
+  if(statusEl){
+    statusEl.textContent=r.ok?`Enviado (${j.protocolo||'ok'})`:`Falha: ${(j.erro||'tente novamente').slice(0,50)}`;
+    statusEl.className=`notif-status ${r.ok?'ok':'err'}`;
+  }
+  if(!r.ok){alert(j.erro||'Falha ao enviar teste.');return;}
+  alert(`Teste ${canal.toUpperCase()} enviado com sucesso. Protocolo: ${j.protocolo}`);
+}
+
+async function enviarTesteAlertaAdmin(canal){await enviarTesteAlerta(canal,'notif-admin')}
 pages.formulario_lgpd=()=>{
   if(lgpdView==='nova'){
     return `<div class="module-page">
@@ -1777,8 +2171,14 @@ pages.notificacoes=()=>`<div class="module-page">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="margin-bottom:10px"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
         <div style="font-size:1rem;font-weight:700;margin-bottom:4px">E-mail</div>
         <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:12px">Receba alertas no seu e-mail</p>
-        <div class="form-group" style="margin:0;text-align:left"><label>Endereço de e-mail</label><input class="form-input" type="email" placeholder="seu@email.com"></div>
-        <label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;font-size:.85rem;font-weight:600;cursor:pointer"><input type="checkbox" style="width:18px;height:18px"> Ativar notificações por e-mail</label>
+        <div class="form-group" style="margin:0;text-align:left"><label>Endereço de e-mail</label><input class="form-input" id="notif-page-email-destino" type="email" placeholder="seu@email.com"></div>
+        <div class="inline-row" style="justify-content:center;margin-top:10px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="enviarCodigoCanalPage('email')">Validar e-mail</button>
+          <input class="form-input" id="notif-page-email-codigo" placeholder="Código de 6 dígitos" style="max-width:170px">
+          <button class="btn btn-ghost btn-sm" onclick="confirmarCodigoCanalPage('email')">Confirmar</button>
+        </div>
+        <span id="notif-page-email-status" class="notif-status">Aguardando validação</span>
+        <label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;font-size:.85rem;font-weight:600;cursor:pointer"><input id="notif-page-email-check" type="checkbox" style="width:18px;height:18px"> Ativar notificações por e-mail</label>
       </div>
     </div>
     <div class="card-panel" style="margin-bottom:0">
@@ -1786,8 +2186,14 @@ pages.notificacoes=()=>`<div class="module-page">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="margin-bottom:10px"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
         <div style="font-size:1rem;font-weight:700;margin-bottom:4px">WhatsApp</div>
         <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:12px">Receba alertas no WhatsApp</p>
-        <div class="form-group" style="margin:0;text-align:left"><label>Número com DDD</label><input class="form-input" type="tel" placeholder="(XX) XXXXX-XXXX"></div>
-        <label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;font-size:.85rem;font-weight:600;cursor:pointer"><input type="checkbox" style="width:18px;height:18px"> Ativar notificações por WhatsApp</label>
+        <div class="form-group" style="margin:0;text-align:left"><label>Número com DDD</label><input class="form-input" id="notif-page-whatsapp-destino" type="tel" placeholder="(XX) XXXXX-XXXX"></div>
+        <div class="inline-row" style="justify-content:center;margin-top:10px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="enviarCodigoCanalPage('whatsapp')">Enviar código</button>
+          <input class="form-input" id="notif-page-whatsapp-codigo" placeholder="Código de 6 dígitos" style="max-width:170px">
+          <button class="btn btn-ghost btn-sm" onclick="confirmarCodigoCanalPage('whatsapp')">Confirmar</button>
+        </div>
+        <span id="notif-page-whatsapp-status" class="notif-status">Aguardando validação</span>
+        <label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;font-size:.85rem;font-weight:600;cursor:pointer"><input id="notif-page-whatsapp-check" type="checkbox" style="width:18px;height:18px"> Ativar notificações por WhatsApp</label>
       </div>
     </div>
     <div class="card-panel" style="margin-bottom:0">
@@ -1795,13 +2201,19 @@ pages.notificacoes=()=>`<div class="module-page">
         <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="margin-bottom:10px"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
         <div style="font-size:1rem;font-weight:700;margin-bottom:4px">SMS</div>
         <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:12px">Receba alertas por SMS</p>
-        <div class="form-group" style="margin:0;text-align:left"><label>Número com DDD</label><input class="form-input" type="tel" placeholder="(XX) XXXXX-XXXX"></div>
-        <label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;font-size:.85rem;font-weight:600;cursor:pointer"><input type="checkbox" style="width:18px;height:18px"> Ativar notificações por SMS</label>
+        <div class="form-group" style="margin:0;text-align:left"><label>Número com DDD</label><input class="form-input" id="notif-page-sms-destino" type="tel" placeholder="(XX) XXXXX-XXXX"></div>
+        <div class="inline-row" style="justify-content:center;margin-top:10px;flex-wrap:wrap">
+          <button class="btn btn-outline btn-sm" onclick="enviarCodigoCanalPage('sms')">Enviar código</button>
+          <input class="form-input" id="notif-page-sms-codigo" placeholder="Código de 6 dígitos" style="max-width:170px">
+          <button class="btn btn-ghost btn-sm" onclick="confirmarCodigoCanalPage('sms')">Confirmar</button>
+        </div>
+        <span id="notif-page-sms-status" class="notif-status">Aguardando validação</span>
+        <label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;font-size:.85rem;font-weight:600;cursor:pointer"><input id="notif-page-sms-check" type="checkbox" style="width:18px;height:18px"> Ativar notificações por SMS</label>
       </div>
     </div>
   </div>
 
-  <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm">Salvar Preferências</button></div>
+  <div style="display:flex;justify-content:flex-end"><button class="btn btn-primary btn-sm" onclick="salvarPreferenciasNotificacaoPage()">Salvar Preferências</button></div>
 </div>`;
 
 /* ── PERFIL ── */
@@ -1875,6 +2287,26 @@ pages._perfil_admin=()=>{
       <div style="display:flex;justify-content:flex-end;margin-top:8px"><button class="btn btn-outline btn-sm" onclick="salvarSenhaAdminPerfil()">Alterar Senha</button></div>
     </div></div>
   </div>
+  <div class="card-panel" style="margin-top:14px">
+    <div class="card-panel-header"><h3>Teste de Alertas (Admin / Suporte / Dev)</h3></div>
+    <div class="card-panel-body">
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:12px">Envie uma mensagem de teste para validar os canais de alerta do portal.</p>
+      <div class="grid-3" style="gap:12px">
+        <div>
+          <div class="form-group"><label>E-mail</label><input class="form-input" id="notif-admin-email-destino" value="${me.email||''}" placeholder="email@dominio.com"></div>
+          <div class="inline-row"><button class="btn btn-outline btn-sm" onclick="enviarTesteAlertaAdmin('email')">Testar e-mail</button><span id="notif-admin-email-status" class="notif-status">Aguardando teste</span></div>
+        </div>
+        <div>
+          <div class="form-group"><label>WhatsApp</label><input class="form-input" id="notif-admin-whatsapp-destino" placeholder="(71) 99999-9999"></div>
+          <div class="inline-row"><button class="btn btn-outline btn-sm" onclick="enviarTesteAlertaAdmin('whatsapp')">Testar WhatsApp</button><span id="notif-admin-whatsapp-status" class="notif-status">Aguardando teste</span></div>
+        </div>
+        <div>
+          <div class="form-group"><label>SMS</label><input class="form-input" id="notif-admin-sms-destino" placeholder="(71) 98888-8888"></div>
+          <div class="inline-row"><button class="btn btn-outline btn-sm" onclick="enviarTesteAlertaAdmin('sms')">Testar SMS</button><span id="notif-admin-sms-status" class="notif-status">Aguardando teste</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div style="display:flex;justify-content:flex-end;margin-top:12px;gap:8px"><button class="btn btn-ghost btn-sm">Cancelar</button><button class="btn btn-primary btn-sm" onclick="salvarAdminPerfil()">Salvar Perfil</button></div>
 </div>`};
 function salvarAdminPerfil(){
@@ -1920,11 +2352,11 @@ pages.faq=()=>`<div class="module-page">
 
 /* ── CONFIGURAÇÕES DO SISTEMA (DEV) — COM ABAS ── */
 let cfgTab='entidade';
-function switchCfgTab(tab){cfgTab=tab;document.getElementById('cfg-tab-content').innerHTML=CFG_TABS[tab]();document.querySelectorAll('.cfg-tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));if(tab==='modulos')setTimeout(renderModulesGrid,30);if(tab==='usuarios')setTimeout(renderAdminUsersTable,30);if(tab==='entidade')setTimeout(populateEntidadeConfig,30);if(tab==='ia')setTimeout(populateConfigIA,30);if(tab==='procuracao_tpl')setTimeout(populateTemplateProcuracao,30);if(tab==='contribuintes')setTimeout(renderContribuintesAdmin,30);}
+function switchCfgTab(tab){cfgTab=tab;document.getElementById('cfg-tab-content').innerHTML=CFG_TABS[tab]();document.querySelectorAll('.cfg-tab-btn').forEach(b=>b.classList.toggle('active',b.dataset.tab===tab));if(tab==='modulos')setTimeout(renderModulesGrid,30);if(tab==='usuarios')setTimeout(renderAdminUsersTable,30);if(tab==='entidade')setTimeout(populateEntidadeConfig,30);if(tab==='ia')setTimeout(populateConfigIA,30);if(tab==='procuracao_tpl')setTimeout(populateTemplateProcuracao,30);if(tab==='contribuintes')setTimeout(renderContribuintesAdmin,30);if(tab==='config'){setTimeout(populateTributosConfig,30);setTimeout(populateNotificacoesConfig,30);}}
 
 pages.config_dev=()=>{
   const tabs=['entidade','govbr','ia','procuracao_tpl','modulos','usuarios','contribuintes','config','logs'];
-  const labels={entidade:'Entidade',govbr:'Gov.BR',ia:'IA Chatbot',procuracao_tpl:'Procuração',modulos:'Módulos',usuarios:'Usuários',contribuintes:'Contribuintes',config:'Configurações',logs:'Logs'};
+  const labels={entidade:'Entidade',govbr:'Gov.BR',ia:'IA Chatbot',procuracao_tpl:'Procuração',modulos:'Módulos',usuarios:'Usuários',contribuintes:'Contribuintes',config:'Integrações',logs:'Logs'};
   return `<div class="module-page">
   <div class="page-header"><h1>Configurações do Sistema</h1><p>Painel exclusivo — admin, suporte e desenvolvedores.</p></div>
   <div class="info-banner warning"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Acesso restrito. Logado como: <strong>${localStorage.getItem('crc_admin_name')||'Admin'}</strong> (${(localStorage.getItem('crc_admin_perfil')||'admin').toUpperCase()})${isLoggedAsMaster()?' — <strong style="color:var(--accent)">MASTER</strong>':''}</div>
@@ -1939,16 +2371,32 @@ const CFG_TABS={};
 
 /* ── ABA: ENTIDADE ── */
 function getEntidadeConfig(){try{return JSON.parse(localStorage.getItem('crc_entidade_config'))||{}}catch(e){return{}}}
-function saveEntidadeConfig(){
+async function saveEntidadeConfig(){
   const c=getEntidadeConfig();
   c.nome=document.getElementById('ent-nome')?.value||'';c.cnpj=document.getElementById('ent-cnpj')?.value||'';
   c.ibge=document.getElementById('ent-ibge')?.value||'';c.uf=document.getElementById('ent-uf')?.value||'BA';
   c.responsavel=document.getElementById('ent-responsavel')?.value||'';c.email=document.getElementById('ent-email')?.value||'';
   c.telefone=document.getElementById('ent-telefone')?.value||'';c.endereco=document.getElementById('ent-endereco')?.value||'';
-  localStorage.setItem('crc_entidade_config',JSON.stringify(c));alert('Entidade salva! O logotipo e dados serão usados no cabeçalho dos documentos.');}
+  localStorage.setItem('crc_entidade_config',JSON.stringify(c));
+  try{
+    await fetch('/api/v1/entidade/config',{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(c)
+    });
+    alert('Entidade salva! O logotipo e dados serão usados no cabeçalho dos documentos.');
+  }catch(_err){
+    alert('Entidade salva localmente. Não foi possível sincronizar no servidor agora.');
+  }
+}
 function populateEntidadeConfig(){const c=getEntidadeConfig();['nome','cnpj','ibge','uf','responsavel','email','telefone','endereco'].forEach(k=>{const el=document.getElementById('ent-'+k);if(el&&c[k])el.value=c[k]});const logo=document.getElementById('ent-logo-preview');if(logo&&c.logo){logo.innerHTML=`<img src="${c.logo}" alt="Logotipo">`;logo.style.display='flex'}}
 function handleEntidadeLogoUpload(e){
   const f=e.target.files[0];if(!f)return;
+  if(f.type==='image/svg+xml'){
+    alert('Logo em SVG nao e suportado para emissao de PDF. Use PNG, JPG ou WEBP.');
+    e.target.value='';
+    return;
+  }
   const r=new FileReader();
   r.onload=function(ev){
     const c=getEntidadeConfig();c.logo=ev.target.result;
@@ -1970,7 +2418,7 @@ CFG_TABS.entidade=()=>{
         <p style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px">Usado no cabeçalho de certidões, boletos, guias e demais documentos.</p>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
           <div id="ent-logo-preview" class="entidade-logo-preview" style="display:${c.logo?'flex':'none'}">${c.logo?`<img src="${c.logo}" alt="Logotipo">`:'<span style="font-size:.7rem;color:var(--text-muted)">Sem logo</span>'}</div>
-          <div><input type="file" id="ent-logo-upload" accept="image/png,image/jpeg,image/svg+xml" onchange="handleEntidadeLogoUpload(event)" style="display:none"><button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('ent-logo-upload').click()">${c.logo?'Trocar':'Enviar'} Logotipo</button></div>
+          <div><input type="file" id="ent-logo-upload" accept="image/png,image/jpeg,image/webp" onchange="handleEntidadeLogoUpload(event)" style="display:none"><button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('ent-logo-upload').click()">${c.logo?'Trocar':'Enviar'} Logotipo</button></div>
         </div>
       </div>
       <div class="grid-2">
@@ -1987,18 +2435,10 @@ CFG_TABS.entidade=()=>{
     </div>
   </div>
   <div class="card-panel">
-    <div class="card-panel-header"><h3>Integração com Sistema de Tributos</h3></div>
+    <div class="card-panel-header"><h3>Integrações Técnicas</h3></div>
     <div class="card-panel-body">
-      <div class="grid-2">
-        <div class="form-group"><label>URL da API de Tributos</label><input class="form-input" placeholder="https://api.tributos..."></div>
-        <div class="form-group"><label>Token de Autenticação</label><input class="form-input" type="password" placeholder="Bearer token"></div>
-        <div class="form-group"><label>Banco de Dados</label><select class="form-select"><option selected>PostgreSQL</option><option>SQL Server</option><option>Oracle</option><option>MySQL</option></select></div>
-        <div class="form-group"><label>Sincronização</label><select class="form-select"><option>Tempo Real (API)</option><option selected>A cada 15 min</option><option>A cada 1 hora</option><option>Manual</option></select></div>
-      </div>
-      <div class="grid-3" style="margin-top:12px">
-        ${[['Cadastro de Contribuintes','CPF/CNPJ e dados cadastrais',true],['Inscrições Imobiliárias','Imóveis e lotes',true],['Inscrições Econômicas','Empresas e atividades',true],['Lançamentos Tributários','IPTU, ISS, TFF, taxas',true],['Dívida Ativa','CDA e inscrições',true],['Parcelamentos/Acordos','Acordos e parcelas',false]].map(([t,d,on])=>`<label class="cfg-option-card"><input class="cfg-option-check" type="checkbox" ${on?'checked':''} style="margin-top:2px"><div><div style="font-size:.82rem;font-weight:600">${t}</div><div style="font-size:.72rem;color:var(--text-muted)">${d}</div></div></label>`).join('')}
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn btn-outline btn-sm">Testar Conexão</button><button class="btn btn-primary btn-sm">Salvar Integração</button></div>
+      <div class="info-banner"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>As configurações de integração de <strong>Tributos + Notificações + Testes</strong> foram centralizadas na aba <strong>Integrações</strong>.</div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px"><button class="btn btn-primary btn-sm" onclick="switchCfgTab('config')">Abrir Integrações</button></div>
     </div>
   </div>`;
 };
@@ -2223,29 +2663,129 @@ CFG_TABS.usuarios=()=>{
 };
 
 /* ── ABA: CONFIG GERAIS ── */
+function populateTributosConfig(){
+  fetch('/api/v1/integracoes/tributos')
+    .then(r=>r.json())
+    .then(({config})=>{
+      if(!config)return;
+      const map={apiBaseUrl:'cfg-trib-api-url',authType:'cfg-trib-auth-type',authToken:'cfg-trib-auth-token',healthPath:'cfg-trib-health-path',timeoutMs:'cfg-trib-timeout',sincronizacao:'cfg-trib-sync'};
+      Object.entries(map).forEach(([k,id])=>{const el=document.getElementById(id);if(el&&config[k]!==undefined)el.value=config[k];});
+      (config.recursos||[]).forEach((k)=>{const el=document.getElementById(`cfg-trib-recurso-${k}`);if(el)el.checked=true;});
+    })
+    .catch(()=>{});
+}
+async function salvarTributosConfig(){
+  const recursos=['cadastro','imobiliario','economico','lancamentos','divida','parcelamentos'].filter((k)=>document.getElementById(`cfg-trib-recurso-${k}`)?.checked);
+  const payload={
+    apiBaseUrl:document.getElementById('cfg-trib-api-url')?.value||'',
+    authType:document.getElementById('cfg-trib-auth-type')?.value||'bearer',
+    authToken:document.getElementById('cfg-trib-auth-token')?.value||'',
+    healthPath:document.getElementById('cfg-trib-health-path')?.value||'/health',
+    timeoutMs:Number(document.getElementById('cfg-trib-timeout')?.value||10000),
+    sincronizacao:document.getElementById('cfg-trib-sync')?.value||'15min',
+    recursos
+  };
+  const r=await fetch('/api/v1/integracoes/tributos',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){alert(j.erro||'Não foi possível salvar a integração de tributos.');return;}
+  alert('Integração de tributos salva com sucesso.');
+}
+async function testarTributosConfig(){
+  const payload={
+    apiBaseUrl:document.getElementById('cfg-trib-api-url')?.value||'',
+    authType:document.getElementById('cfg-trib-auth-type')?.value||'bearer',
+    authToken:document.getElementById('cfg-trib-auth-token')?.value||'',
+    healthPath:document.getElementById('cfg-trib-health-path')?.value||'/health',
+    timeoutMs:Number(document.getElementById('cfg-trib-timeout')?.value||10000),
+  };
+  const r=await fetch('/api/v1/integracoes/tributos/testar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok||!j.ok){alert(j.erro||`Falha ao testar conexão (${j.status||'sem status'}).`);return;}
+  alert(`Conexão com tributos OK (HTTP ${j.status}).`);
+}
+function populateNotificacoesConfig(){
+  fetch('/api/v1/notificacoes/config')
+    .then(r=>r.json())
+    .then(({config})=>{
+      if(!config)return;
+      const map={emailWebhookUrl:'cfg-notif-email-webhook',whatsappWebhookUrl:'cfg-notif-whatsapp-webhook',smsWebhookUrl:'cfg-notif-sms-webhook',remetentePadrao:'cfg-notif-remetente'};
+      Object.entries(map).forEach(([k,id])=>{const el=document.getElementById(id);if(el&&config[k]!==undefined)el.value=config[k];});
+      const testMap={email:'cfg-test-email-destino',whatsapp:'cfg-test-whatsapp-destino',sms:'cfg-test-sms-destino'};
+      Object.entries(testMap).forEach(([k,id])=>{const el=document.getElementById(id);if(el&&!el.value)el.value=k==='email'?'teste@prefeitura.ba.gov.br':'(71) 99999-9999';});
+    })
+    .catch(()=>{});
+}
+async function salvarNotificacoesConfig(){
+  const payload={
+    emailWebhookUrl:document.getElementById('cfg-notif-email-webhook')?.value||'',
+    whatsappWebhookUrl:document.getElementById('cfg-notif-whatsapp-webhook')?.value||'',
+    smsWebhookUrl:document.getElementById('cfg-notif-sms-webhook')?.value||'',
+    remetentePadrao:document.getElementById('cfg-notif-remetente')?.value||'Portal CRC'
+  };
+  const r=await fetch('/api/v1/notificacoes/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){alert(j.erro||'Não foi possível salvar configuração de notificações.');return;}
+  alert('Configuração de notificações salva com sucesso.');
+}
 CFG_TABS.config=()=>`
   <div class="card-panel" style="margin-bottom:16px">
+    <div class="card-panel-header"><h3>Integração com Sistema de Tributos (API)</h3></div>
+    <div class="card-panel-body">
+      <div class="info-banner" style="margin-bottom:12px">Configure aqui os dados de conexão com o sistema tributário e teste o endpoint antes de colocar em produção.</div>
+      <div class="grid-2">
+        <div class="form-group"><label>URL Base da API</label><input class="form-input" id="cfg-trib-api-url" placeholder="https://api.tributos.gov.br"></div>
+        <div class="form-group"><label>Path de Health Check</label><input class="form-input" id="cfg-trib-health-path" placeholder="/health"></div>
+        <div class="form-group"><label>Autenticação</label><select class="form-select" id="cfg-trib-auth-type"><option value="bearer">Bearer Token</option><option value="x-api-key">x-api-key</option><option value="none">Sem autenticação</option></select></div>
+        <div class="form-group"><label>Token / API Key</label><input class="form-input" id="cfg-trib-auth-token" type="password" placeholder="Chave de integração"></div>
+        <div class="form-group"><label>Timeout (ms)</label><input class="form-input" id="cfg-trib-timeout" type="number" value="10000" min="1000" step="500"></div>
+        <div class="form-group"><label>Sincronização</label><select class="form-select" id="cfg-trib-sync"><option value="tempo-real">Tempo real</option><option value="15min">A cada 15 min</option><option value="1h">A cada 1 hora</option><option value="manual">Manual</option></select></div>
+      </div>
+      <div class="grid-3" style="margin-top:10px">
+        ${[['cadastro','Cadastro de Contribuintes'],['imobiliario','Inscrições Imobiliárias'],['economico','Inscrições Econômicas'],['lancamentos','Lançamentos Tributários'],['divida','Dívida Ativa'],['parcelamentos','Parcelamentos/Acordos']].map(([k,t])=>`<label class="cfg-option-card"><input class="cfg-option-check" id="cfg-trib-recurso-${k}" type="checkbox"><div><div style="font-size:.82rem;font-weight:600">${t}</div></div></label>`).join('')}
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn btn-outline btn-sm" onclick="testarTributosConfig()">Testar Conexão</button><button class="btn btn-primary btn-sm" onclick="salvarTributosConfig()">Salvar Integração</button></div>
+    </div>
+  </div>
+  <div class="card-panel" style="margin-bottom:16px">
+    <div class="card-panel-header"><h3>Configuração de Envio de Alertas</h3></div>
+    <div class="card-panel-body">
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:10px">Opcional: informe webhooks dos provedores para envio real. Se vazio, o sistema permanece em modo simulado.</p>
+      <div class="grid-2">
+        <div class="form-group"><label>Webhook E-mail</label><input class="form-input" id="cfg-notif-email-webhook" placeholder="https://provider/email/send"></div>
+        <div class="form-group"><label>Webhook WhatsApp</label><input class="form-input" id="cfg-notif-whatsapp-webhook" placeholder="https://provider/whatsapp/send"></div>
+        <div class="form-group"><label>Webhook SMS</label><input class="form-input" id="cfg-notif-sms-webhook" placeholder="https://provider/sms/send"></div>
+        <div class="form-group"><label>Remetente padrão</label><input class="form-input" id="cfg-notif-remetente" placeholder="Portal CRC"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn btn-primary btn-sm" onclick="salvarNotificacoesConfig()">Salvar Configuração de Envio</button></div>
+    </div>
+  </div>
+  <div class="card-panel" style="margin-bottom:16px">
+    <div class="card-panel-header"><h3>Teste Operacional de Envio</h3></div>
+    <div class="card-panel-body">
+      <p style="font-size:.82rem;color:var(--text-secondary);margin-bottom:12px">Valide os canais com envio de teste (simulado ou via webhook, se configurado).</p>
+      <div class="grid-3" style="gap:12px">
+        <div>
+          <div class="form-group"><label>Destino E-mail</label><input class="form-input" id="cfg-test-email-destino" placeholder="teste@prefeitura.ba.gov.br"></div>
+          <div class="inline-row"><button class="btn btn-outline btn-sm" onclick="enviarTesteAlerta('email','cfg-test')">Testar e-mail</button><span id="cfg-test-email-status" class="notif-status">Aguardando teste</span></div>
+        </div>
+        <div>
+          <div class="form-group"><label>Destino WhatsApp</label><input class="form-input" id="cfg-test-whatsapp-destino" placeholder="(71) 99999-9999"></div>
+          <div class="inline-row"><button class="btn btn-outline btn-sm" onclick="enviarTesteAlerta('whatsapp','cfg-test')">Testar WhatsApp</button><span id="cfg-test-whatsapp-status" class="notif-status">Aguardando teste</span></div>
+        </div>
+        <div>
+          <div class="form-group"><label>Destino SMS</label><input class="form-input" id="cfg-test-sms-destino" placeholder="(71) 98888-8888"></div>
+          <div class="inline-row"><button class="btn btn-outline btn-sm" onclick="enviarTesteAlerta('sms','cfg-test')">Testar SMS</button><span id="cfg-test-sms-status" class="notif-status">Aguardando teste</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="card-panel">
     <div class="card-panel-header"><h3>Regras de Notificação ao Contribuinte</h3></div>
     <div class="card-panel-body">
       <p style="font-size:.84rem;color:var(--text-secondary);margin-bottom:14px">Defina quais tipos de notificação os contribuintes recebem quando ativam um canal (e-mail, WhatsApp ou SMS).</p>
       <div class="grid-2-gap8">
-        ${[['Vencimento de tributos/boletos','Aviso antes do vencimento de IPTU, ISS, TFF, parcelas, etc.',true],['Caixa Postal','Novas mensagens da Prefeitura na Caixa Postal do contribuinte',true],['DEC / DTE (Domicílio Eletrônico)','Notificações fiscais oficiais e comunicados eletrônicos',true],['Campanhas de regularização','Avisos sobre programas de anistia, refis e descontos',false],['Emissão de documentos','Confirmação quando certidões, NFSe ou alvarás forem emitidos',false],['Alterações cadastrais','Quando houver mudança no cadastro imobiliário ou econômico',false]].map(([t,d,on])=>`<label style="display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid var(--border-light);border-radius:var(--r-sm);cursor:pointer${on?';background:var(--accent-glow2);border-color:var(--accent)':''}"><input type="checkbox" ${on?'checked':''} style="margin-top:2px"><div><div style="font-size:.82rem;font-weight:600">${t}</div><div style="font-size:.72rem;color:var(--text-muted)">${d}</div></div></label>`).join('')}
+        ${[['Vencimento de tributos/boletos','Aviso antes do vencimento de IPTU, ISS, TFF, parcelas, etc.',true],['Caixa Postal','Novas mensagens da Prefeitura na Caixa Postal do contribuinte',true],['DEC / DTE (Domicílio Eletrônico)','Notificações fiscais oficiais e comunicados eletrônicos',true],['Campanhas de regularização','Avisos sobre programas de anistia, refis e descontos',false],['Emissão de documentos','Confirmação quando certidões, NFSe ou alvarás forem emitidos',false],['Alterações cadastrais','Quando houver mudança no cadastro imobiliário ou econômico',false]].map(([t,d,on])=>`<label class="cfg-option-card"><input class="cfg-option-check" type="checkbox" ${on?'checked':''}><div><div style="font-size:.82rem;font-weight:600">${t}</div><div style="font-size:.72rem;color:var(--text-muted)">${d}</div></div></label>`).join('')}
       </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn btn-primary btn-sm">Salvar Regras de Notificação</button></div>
-    </div>
-  </div>
-  <div class="card-panel">
-    <div class="card-panel-header"><h3>Configurações Gerais do Portal</h3></div>
-    <div class="card-panel-body">
-      <div class="grid-2">
-        <div class="form-group"><label>Nome do Município</label><input class="form-input" placeholder="Nome do município"></div>
-        <div class="form-group"><label>UF</label><input class="form-input" placeholder="XX"></div>
-        <div class="form-group"><label>CNPJ da Prefeitura</label><input class="form-input" placeholder="00.000.000/0001-00"></div>
-        <div class="form-group"><label>E-mail de Suporte</label><input class="form-input" placeholder="suporte@portal.gov.br"></div>
-        <div class="form-group"><label>Modo de Manutenção</label><select class="form-select"><option>Desativado</option><option>Ativado — Portal offline</option><option>Parcial — Somente consultas</option></select></div>
-        <div class="form-group"><label>Versão do Sistema</label><input class="form-input" value="CRC v1.0" disabled></div>
-      </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn btn-primary btn-sm">Salvar Configurações</button></div>
     </div>
   </div>`;
 

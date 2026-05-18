@@ -205,7 +205,8 @@
       </div>
       <p class="system-dialog-message"></p>
       <div class="system-dialog-actions">
-        <button class="btn btn-primary btn-sm" onclick="closeSystemDialog()">OK</button>
+        <button id="system-dialog-cancel" class="btn btn-ghost btn-sm" style="display:none" onclick="cancelSystemDialog()">Cancelar</button>
+        <button id="system-dialog-ok" class="btn btn-primary btn-sm" onclick="closeSystemDialog(true)">OK</button>
       </div>
     </div>
   </div>

@@ -9,7 +9,16 @@ function ensureStoreFile() {
   if (!fs.existsSync(STORE_FILE)) {
     fs.writeFileSync(
       STORE_FILE,
-      JSON.stringify({ lgpdConsents: [], notificacoesPreferencias: {}, certidoesEmitidas: [] }, null, 2),
+      JSON.stringify({
+        lgpdConsents: [],
+        notificacoesPreferencias: {},
+        certidoesEmitidas: [],
+        documents: [],
+        entidadeConfig: {},
+        tributosConfig: {},
+        notificacoesConfig: {},
+        notificacoesTesteHistorico: [],
+      }, null, 2),
       'utf8',
     );
   }
@@ -24,9 +33,22 @@ function readStore() {
       notificacoesPreferencias: raw.notificacoesPreferencias && typeof raw.notificacoesPreferencias === 'object' ? raw.notificacoesPreferencias : {},
       certidoesEmitidas: Array.isArray(raw.certidoesEmitidas) ? raw.certidoesEmitidas : [],
       documents: Array.isArray(raw.documents) ? raw.documents : [],
+      entidadeConfig: raw.entidadeConfig && typeof raw.entidadeConfig === 'object' ? raw.entidadeConfig : {},
+      tributosConfig: raw.tributosConfig && typeof raw.tributosConfig === 'object' ? raw.tributosConfig : {},
+      notificacoesConfig: raw.notificacoesConfig && typeof raw.notificacoesConfig === 'object' ? raw.notificacoesConfig : {},
+      notificacoesTesteHistorico: Array.isArray(raw.notificacoesTesteHistorico) ? raw.notificacoesTesteHistorico : [],
     };
   } catch (_err) {
-    return { lgpdConsents: [], notificacoesPreferencias: {}, certidoesEmitidas: [], documents: [] };
+    return {
+      lgpdConsents: [],
+      notificacoesPreferencias: {},
+      certidoesEmitidas: [],
+      documents: [],
+      entidadeConfig: {},
+      tributosConfig: {},
+      notificacoesConfig: {},
+      notificacoesTesteHistorico: [],
+    };
   }
 }
 
