@@ -1,27 +1,52 @@
-require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
 const morgan = require('morgan');
 const path = require('path');
 const PDFDocument = require('pdfkit');
+const env = require('./src/config/env');
+const logger = require('./src/config/logger');
+const { buildSecurityMiddlewares } = require('./src/middlewares/security');
+const { buildRequestLogger } = require('./src/middlewares/requestLogger');
+const healthRouter = require('./src/routes/health');
+const dteIntegrationRouter = require('./src/routes/dteIntegration');
+const criticalFeaturesRouter = require('./src/routes/criticalFeatures');
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = env.PORT;
+const { helmetMiddleware, corsMiddleware, rateLimitMiddleware } = buildSecurityMiddlewares();
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+app.disable('x-powered-by');
 
+app.use(helmetMiddleware);
+app.use(corsMiddleware);
+app.use(rateLimitMiddleware);
+app.use(buildRequestLogger());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(morgan('dev'));
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'crc_secret',
+  secret: env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
-  cookie: { maxAge: 24 * 60 * 60 * 1000 }
+  cookie: {
+    maxAge: 24 * 60 * 60 * 1000,
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: env.NODE_ENV === 'production',
+  }
 }));
+
+app.use(healthRouter);
+app.use(dteIntegrationRouter);
+app.use(criticalFeaturesRouter);
+
+app.get(['/dte', '/dte/*'], (_req, res) => {
+  res.render('index');
+});
 
 app.get('/', (req, res) => {
   res.render('index');
@@ -238,8 +263,15 @@ app.post('/api/procuracao/pdf', (req, res) => {
   doc.end();
 });
 
-app.listen(PORT, () => {
-  console.log(`\n🏛️  CRC — Central de Relacionamento com o Contribuinte v1.0`);
-  console.log(`🚀 Rodando em: http://localhost:${PORT}`);
-  console.log(`🌐 Acesse: http://localhost:${PORT}\n`);
+app.use((err, _req, res, _next) => {
+  logger.error({ err }, 'Erro interno não tratado');
+  res.status(500).json({ erro: 'Erro interno no servidor' });
 });
+
+if (require.main === module) {
+  app.listen(PORT, () => {
+    logger.info(`CRC iniciado em http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;

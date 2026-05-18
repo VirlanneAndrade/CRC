@@ -5,34 +5,30 @@
 /* ── ROBOT SVG ── */
 function robotSVG(s=52,expr='happy'){
   const eyes = expr==='think'
-    ? '<ellipse cx="17" cy="21" rx="3" ry="2.5" fill="#0A1A12"/><ellipse cx="31" cy="21" rx="3" ry="2.5" fill="#0A1A12"/><circle cx="16" cy="20" r="1.2" fill="#fff" opacity=".8"/><circle cx="30" cy="20" r="1.2" fill="#fff" opacity=".8"/>'
-    : '<ellipse cx="17" cy="21" rx="3" ry="3" fill="#0A1A12"/><ellipse cx="31" cy="21" rx="3" ry="3" fill="#0A1A12"/><circle cx="15.8" cy="19.8" r="1.5" fill="#fff" opacity=".9"/><circle cx="29.8" cy="19.8" r="1.5" fill="#fff" opacity=".9"/><circle cx="17" cy="21" rx="1" ry="1" fill="#00D4A0" opacity=".3"/><circle cx="31" cy="21" rx="1" ry="1" fill="#00D4A0" opacity=".3"/>';
+    ? '<ellipse cx="17" cy="22" rx="4.3" ry="5.3" fill="#FFFFFF"/><ellipse cx="31" cy="22" rx="4.3" ry="5.3" fill="#FFFFFF"/><circle cx="17" cy="23" r="2.2" fill="#2F3A4A"/><circle cx="31" cy="23" r="2.2" fill="#2F3A4A"/><circle cx="16.2" cy="22" r="1.1" fill="#fff"/><circle cx="30.2" cy="22" r="1.1" fill="#fff"/>'
+    : '<ellipse cx="17" cy="22" rx="4.8" ry="5.8" fill="#FFFFFF"/><ellipse cx="31" cy="22" rx="4.8" ry="5.8" fill="#FFFFFF"/><circle cx="17" cy="23" r="2.5" fill="#2F3A4A"/><circle cx="31" cy="23" r="2.5" fill="#2F3A4A"/><circle cx="16.1" cy="21.8" r="1.25" fill="#fff"/><circle cx="30.1" cy="21.8" r="1.25" fill="#fff"/><circle cx="18.1" cy="24.3" r=".55" fill="#A9D6FF"/><circle cx="32.1" cy="24.3" r=".55" fill="#A9D6FF"/>';
   const mouth = expr==='happy'
-    ? '<path d="M18 28.5 Q24 34 30 28.5" stroke="#0A1A12" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+    ? '<path d="M18 30 Q24 35 30 30" stroke="#2F3A4A" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
     : expr==='think'
-    ? '<circle cx="24" cy="30" r="2.2" fill="#0A1A12" opacity=".7"/>'
-    : '<path d="M19 29.5 L29 29.5" stroke="#0A1A12" stroke-width="2" stroke-linecap="round"/>';
-  const cheeks = expr==='happy' ? '<circle cx="12" cy="26" r="3" fill="#E87C1E" opacity=".15"/><circle cx="36" cy="26" r="3" fill="#E87C1E" opacity=".15"/>' : '';
+    ? '<ellipse cx="24" cy="31" rx="2.2" ry="1.9" fill="#2F3A4A" opacity=".8"/>'
+    : expr==='sad'
+    ? '<path d="M18 33 Q24 28 30 33" stroke="#2F3A4A" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
+    : '<path d="M19 31 L29 31" stroke="#2F3A4A" stroke-width="2" stroke-linecap="round"/>';
+  const cheeks = expr==='happy' ? '<circle cx="11.6" cy="27" r="2.8" fill="#F7C6D9" opacity=".72"/><circle cx="36.4" cy="27" r="2.8" fill="#F7C6D9" opacity=".72"/>' : '';
   return `<svg width="${s}" height="${s}" viewBox="0 0 48 48" fill="none">
-    <defs>
-      <linearGradient id="rg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#00E8B0"/><stop offset="100%" stop-color="#009E72"/></linearGradient>
-      <linearGradient id="rg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00D4A0" stop-opacity=".3"/><stop offset="100%" stop-color="#00D4A0" stop-opacity="0"/></linearGradient>
-      <filter id="glow"><feGaussianBlur stdDeviation="1.5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    </defs>
-    <circle cx="24" cy="3" r="3" fill="#00D4A0" filter="url(#glow)"><animate attributeName="opacity" values="1;.3;1" dur="2s" repeatCount="indefinite"/></circle>
-    <line x1="24" y1="5.5" x2="24" y2="10" stroke="#00D4A0" stroke-width="2" stroke-linecap="round"/>
-    <rect x="5" y="10" width="38" height="28" rx="10" fill="url(#rg)"/>
-    <rect x="5" y="10" width="38" height="14" rx="10" fill="url(#rg2)"/>
-    <rect x="9" y="14" width="30" height="14" rx="5" fill="#0A1A12" opacity=".2"/>
+    <circle cx="24" cy="3.5" r="2.8" fill="#A9D6FF"><animate attributeName="opacity" values="1;.4;1" dur="2s" repeatCount="indefinite"/></circle>
+    <line x1="24" y1="6" x2="24" y2="10" stroke="#8FC5F8" stroke-width="2" stroke-linecap="round"/>
+    <rect x="5" y="10" width="38" height="28" rx="10" fill="#BFEFD6" stroke="#8FC5F8" stroke-width="1.2"/>
+    <rect x="6.5" y="11.8" width="35" height="11.8" rx="8" fill="#EAF4FF" opacity=".9"/>
+    <rect x="9" y="15" width="30" height="15" rx="6" fill="#F8FBFF" opacity=".88"/>
     ${eyes}
     ${cheeks}
     ${mouth}
-    <rect x="12" y="38" width="24" height="7" rx="3.5" fill="url(#rg)"/>
-    <rect x="15" y="40" width="18" height="3" rx="1.5" fill="#0A1A12" opacity=".12"/>
-    <rect x="2" y="20" width="5" height="10" rx="2.5" fill="url(#rg)"/>
-    <rect x="41" y="20" width="5" height="10" rx="2.5" fill="url(#rg)"/>
-    <rect x="2.5" y="22" width="4" height="4" rx="2" fill="#0A1A12" opacity=".1"/>
-    <rect x="41.5" y="22" width="4" height="4" rx="2" fill="#0A1A12" opacity=".1"/>
+    <path d="M14 38h20c0 2.8-2.2 5-5 5H19c-2.8 0-5-2.2-5-5z" fill="#A9D6FF"/>
+    <rect x="2.2" y="20" width="5" height="10" rx="2.5" fill="#BFEFD6" stroke="#8FC5F8" stroke-width=".8"/>
+    <rect x="40.8" y="20" width="5" height="10" rx="2.5" fill="#BFEFD6" stroke="#8FC5F8" stroke-width=".8"/>
+    <path d="M39 13l1.1 1.9 2.1.3-1.6 1.4.4 2.1-2-1.1-1.9 1.1.4-2.1-1.6-1.4 2.1-.3L39 13z" fill="#F7C6D9"/>
+    <path d="M9 12.4l.8 1.4 1.6.2-1.2 1.1.3 1.6-1.5-.8-1.5.8.3-1.6-1.2-1.1 1.6-.2.8-1.4z" fill="#A9D6FF"/>
   </svg>`;
 }
 
@@ -72,7 +68,44 @@ function downloadICS(title,dateStr,details){
 /* ── AUTH (admin vs contribuinte) ── */
 let currentUserType='contribuinte'; // 'contribuinte' | 'admin'
 let currentAdminLogin=''; // login do admin logado
+const notifValidationState={email:{codigoId:null,validado:false},whatsapp:{codigoId:null,validado:false},sms:{codigoId:null,validado:false}};
+let lgpdPendingResolve=null;
+let systemDialogResolve=null;
 const MASTER_LOGIN='admin'; // login do master — único que pode excluir
+
+function inferDialogTone(message){
+  const m=String(message||'').toLowerCase();
+  if(m.includes('sucesso')||m.includes('copiado')||m.includes('salvo')||m.includes('criada')||m.includes('alterada')||m.includes('atualizado')) return 'success';
+  if(m.includes('inválid')||m.includes('inval')||m.includes('erro')||m.includes('falha')||m.includes('negado')||m.includes('não')||m.includes('nao')) return 'error';
+  return 'info';
+}
+
+function closeSystemDialog(){
+  const modal=document.getElementById('modal-system');
+  if(modal) modal.style.display='none';
+  if(systemDialogResolve) systemDialogResolve();
+  systemDialogResolve=null;
+}
+
+function showSystemDialog(message,tone){
+  const modal=document.getElementById('modal-system');
+  if(!modal){window.console.warn(message);return Promise.resolve();}
+  const t=tone||inferDialogTone(message);
+  const title=t==='success'?'Tudo certo':(t==='error'?'Atenção':'Informação');
+  const expr=t==='success'?'happy':(t==='error'?'sad':'think');
+  const klass=t==='success'?'system-dialog--success':(t==='error'?'system-dialog--error':'system-dialog--info');
+  const dialog=modal.querySelector('.system-dialog');
+  dialog.className=`system-dialog ${klass}`;
+  dialog.querySelector('.system-dialog-robot').innerHTML=robotSVG(44,expr);
+  dialog.querySelector('.system-dialog-title').textContent=title;
+  dialog.querySelector('.system-dialog-message').textContent=String(message||'');
+  modal.style.display='flex';
+  return new Promise((resolve)=>{systemDialogResolve=resolve;});
+}
+
+if(typeof window!=='undefined'){
+  window.alert=(msg)=>{showSystemDialog(msg);};
+}
 function getAdminUsers(){
   try{
     let users=JSON.parse(localStorage.getItem('crc_admin_users'));
@@ -116,6 +149,10 @@ function applySidebarVisibility(){
     if(ulevel)ulevel.textContent=adminPerfil;
     if(topName)topName.textContent=adminName;
     if(!currentAdminLogin)currentAdminLogin=localStorage.getItem('crc_admin_login')||'';
+    const adminPhoto=localStorage.getItem('arrecada_photo');
+    const adminInitials=adminName.split(' ').map(n=>n[0]).filter(Boolean).slice(0,2).join('').toUpperCase()||'AD';
+    const sAvatar=document.getElementById('sidebar-avatar');if(sAvatar)sAvatar.innerHTML=adminPhoto?`<img src="${adminPhoto}">`:adminInitials;
+    const tAvatar=document.getElementById('topbar-avatar');if(tAvatar)tAvatar.innerHTML=adminPhoto?`<img src="${adminPhoto}">`:adminInitials;
   }else{
     const c=getContribuinteLogado();
     const nome=c?c.nome.split(' ').slice(0,2).join(' '):'Contribuinte';
@@ -152,13 +189,17 @@ function createParticles(){
   for(let i=0;i<55;i++){const p=document.createElement('div');p.className='particle';p.style.left=Math.random()*100+'%';p.style.top=Math.random()*100+'%';p.style.animationDelay=Math.random()*5+'s';p.style.animationDuration=(3+Math.random()*4)+'s';if(Math.random()>.7){p.style.width='4px';p.style.height='4px';p.style.boxShadow='0 0 8px 3px rgba(0,212,160,.5)'}c.appendChild(p);}
 }
 function renderRobots(){
-  const t={'robot-debitos':['56','happy'],'robot-notif':['56','think'],'robot-main':['52','happy'],'robot-menu-icon':['24','happy'],'tour-robot':['44','happy']};
+  const t={'robot-debitos':['56','happy'],'robot-notif':['56','think'],'robot-main':['52','happy'],'robot-menu-icon':['24','happy'],'tour-robot':['44','happy'],'sidebar-logo-robot':['30','happy'],'login-logo-robot':['48','happy'],'login-logo-robot-admin':['48','think']};
   Object.entries(t).forEach(([id,[s,e]])=>{const el=document.getElementById(id);if(el)el.innerHTML=robotSVG(+s,e);});
 }
 
 /* ── THEME ── */
 function loadTheme(){document.documentElement.setAttribute('data-theme',localStorage.getItem('arrecada_theme')||'light')}
-function toggleTheme(){const n=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',n);localStorage.setItem('arrecada_theme',n)}
+function toggleTheme(){
+  const n=document.documentElement.getAttribute('data-theme')==='dark'?'light':'dark';
+  document.documentElement.setAttribute('data-theme',n);
+  localStorage.setItem('arrecada_theme',n);
+}
 
 /* ── SIDEBAR ── */
 function loadSidebarState(){if(localStorage.getItem('arrecada_sidebar')==='collapsed')document.getElementById('sidebar')?.classList.add('collapsed')}
@@ -249,7 +290,7 @@ function enviarRecuperacao(){
   const div=document.getElementById('login-recuperar');
   div.innerHTML='<div style="text-align:center;padding:16px"><div style="width:48px;height:48px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 10px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><h3 style="font-size:.95rem;margin-bottom:4px">Instruções enviadas!</h3><p style="font-size:.78rem;color:var(--text-muted)">Verifique seu e-mail cadastrado para o CPF '+cpf.value+'.</p><a href="#" onclick="event.preventDefault();document.getElementById(\'login-recuperar\').style.display=\'none\'" style="display:block;margin-top:10px;font-size:.78rem">Voltar ao login</a></div>';
 }
-function doLogin(){
+async function doLogin(){
   const c=getContribuinteLogado();
   if(!c)setContribuinteLogado(getContribuintes()[0]);
   currentUserType='contribuinte';
@@ -258,8 +299,18 @@ function doLogin(){
   applySidebarVisibility();
   applyContribuinteUI();
   renderContribPicker();
+  const aceitouLgpd=await ensureLgpdConsent();
+  if(!aceitouLgpd){
+    doLogout();
+    return;
+  }
   navigate('dashboard');
-  setTimeout(()=>{if(!localStorage.getItem('arrecada_notif_seen'))showModal('modal-notif')},800);
+  setTimeout(()=>{
+    if(!localStorage.getItem('arrecada_notif_seen')){
+      showModal('modal-notif');
+      hydrateNotificacoesModal();
+    }
+  },800);
 }
 function doLogout(){
   if(getProcuradorAtivo())setProcuradorAtivo(null);
@@ -276,6 +327,156 @@ function doLogout(){
 /* ── MODALS ── */
 function showModal(id){document.querySelectorAll('.modal-overlay').forEach(m=>m.style.display='none');const m=document.getElementById(id);if(m)m.style.display='flex'}
 function closeModal(id){const m=document.getElementById(id);if(m)m.style.display='none'}
+
+async function ensureLgpdConsent(){
+  const key='crc_lgpd_aceite_v1';
+  const userId='demo-user';
+  let status;
+  try{
+    const resp=await fetch('/api/v1/lgpd/status',{headers:{'x-user-id':userId}});
+    status=await resp.json();
+    if(resp.ok&&status.acceptedCurrent===true){
+      localStorage.setItem(key,JSON.stringify({versao:status.currentVersion,hash:status.currentHash}));
+      return true;
+    }
+  }catch(_err){}
+
+  const modal=document.getElementById('modal-boleto');
+  if(!modal) return false;
+  let termo={versao:status?.currentVersion||'v1',hash:status?.currentHash||'',html:'<p>Termo indisponivel no momento.</p>'};
+  try{
+    const termoResp=await fetch('/api/v1/lgpd/termo-vigente');
+    const termoBody=await termoResp.json();
+    if(termoResp.ok) termo=termoBody;
+  }catch(_err){}
+
+  return new Promise((resolve)=>{
+    lgpdPendingResolve=resolve;
+    modal.querySelector('.modal').innerHTML=`
+      <div class="modal-header"><h2>Termo de Consentimento e Privacidade</h2></div>
+      <div class="modal-body">
+        <div style="font-size:.84rem;line-height:1.55;color:var(--text-secondary);margin-bottom:12px">${termo.html}</div>
+        <p style="font-size:.76rem;color:var(--text-muted);margin-bottom:10px">Versao: <strong>${termo.versao}</strong> · Hash: <code>${termo.hash}</code></p>
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:.82rem">
+          <input type="checkbox" id="lgpd-aceite-obrigatorio" style="margin-top:3px">
+          <span>Declaro que li e estou ciente do tratamento dos meus dados pessoais.</span>
+        </label>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost btn-sm" onclick="rejeitarLgpd()">Nao concordo</button>
+        <button class="btn btn-primary btn-sm" onclick="aceitarLgpd('${termo.versao}','${termo.hash}')">Aceitar e continuar</button>
+      </div>`;
+    showModal('modal-boleto');
+  });
+}
+
+async function aceitarLgpd(versao,hash){
+  const check=document.getElementById('lgpd-aceite-obrigatorio');
+  if(!check||!check.checked){
+    alert('Marque o aceite para continuar.');
+    return;
+  }
+  try{
+    const r=await fetch('/api/v1/lgpd/aceite',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-user-id':'demo-user'},
+      body:JSON.stringify({papel:'TITULAR',consentimentosOpcionais:[],versaoTermo:versao})
+    });
+    if(!r.ok){
+      const j=await r.json().catch(()=>({}));
+      alert(j.erro||'Falha ao registrar aceite LGPD.');
+      return;
+    }
+  }catch(_err){}
+  localStorage.setItem('crc_lgpd_aceite_v1',JSON.stringify({versao,hash}));
+  closeModal('modal-boleto');
+  if(lgpdPendingResolve) lgpdPendingResolve(true);
+  lgpdPendingResolve=null;
+}
+
+function rejeitarLgpd(){
+  closeModal('modal-boleto');
+  if(lgpdPendingResolve) lgpdPendingResolve(false);
+  lgpdPendingResolve=null;
+}
+
+function hydrateNotificacoesModal(){
+  const prefs=JSON.parse(localStorage.getItem('crc_notif_pref')||'{}');
+  const defaults={email:'usuario@exemplo.com',whatsapp:'(71) 98888-0000',sms:'(71) 97777-0000'};
+  ['email','whatsapp','sms'].forEach((canal)=>{
+    const dest=document.getElementById(`notif-${canal}-destino`);
+    if(dest) dest.value=(prefs[canal]&&prefs[canal].destino)||defaults[canal];
+    const status=document.getElementById(`notif-${canal}-status`);
+    const validado=!!(prefs[canal]&&prefs[canal].validado);
+    notifValidationState[canal].validado=validado;
+    if(status){
+      status.textContent=validado?'Validado':'Aguardando validacao';
+      status.className=`notif-status ${validado?'ok':''}`;
+    }
+  });
+}
+
+async function enviarCodigoCanal(canal){
+  const destinoEl=document.getElementById(`notif-${canal}-destino`);
+  const statusEl=document.getElementById(`notif-${canal}-status`);
+  const destino=(destinoEl&&destinoEl.value||'').trim();
+  if(!destino){alert('Informe o destino do canal.');return;}
+  const r=await fetch('/api/v1/notificacoes/validar/enviar',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({canal,destino})
+  });
+  const j=await r.json();
+  if(!r.ok){alert(j.erro||'Falha ao enviar codigo.');return;}
+  notifValidationState[canal].codigoId=j.codigoId;
+  notifValidationState[canal].validado=false;
+  if(statusEl){
+    statusEl.textContent='Codigo enviado';
+    statusEl.className='notif-status';
+  }
+}
+
+async function confirmarCodigoCanal(canal){
+  const codigoEl=document.getElementById(`notif-${canal}-codigo`);
+  const statusEl=document.getElementById(`notif-${canal}-status`);
+  const codigo=(codigoEl&&codigoEl.value||'').trim();
+  const codigoId=notifValidationState[canal].codigoId;
+  if(!codigoId){alert('Envie o codigo primeiro.');return;}
+  const r=await fetch('/api/v1/notificacoes/validar/conferir',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({codigoId,codigo})
+  });
+  const j=await r.json();
+  notifValidationState[canal].validado=!!j.validado;
+  if(statusEl){
+    statusEl.textContent=j.validado?'Validado com sucesso':'Codigo invalido';
+    statusEl.className=`notif-status ${j.validado?'ok':'err'}`;
+  }
+}
+
+async function salvarPreferenciasNotificacao(){
+  const canais=['email','whatsapp','sms']
+    .filter((canal)=>document.getElementById(`notif-${canal}-check`)?.checked)
+    .map((canal)=>({
+      tipo:canal,
+      destino:document.getElementById(`notif-${canal}-destino`)?.value||'',
+      validado:!!notifValidationState[canal].validado,
+      sincronizarPerfil:true
+    }));
+  const r=await fetch('/api/v1/notificacoes/preferencias',{
+    method:'PUT',
+    headers:{'Content-Type':'application/json','x-user-id':'demo-user'},
+    body:JSON.stringify({canais,tiposNotificacao:['vencimento','novoDocumento','acordoStatus']})
+  });
+  const j=await r.json();
+  if(!r.ok){alert(j.erro||'Nao foi possivel salvar preferencias.');return;}
+  const local={};
+  canais.forEach((c)=>{local[c.tipo]={destino:c.destino,validado:c.validado};});
+  localStorage.setItem('crc_notif_pref',JSON.stringify(local));
+  localStorage.setItem('arrecada_notif_seen','1');
+  closeModal('modal-notif');
+}
 
 /* ── CHAT IA ── */
 let chatOpen=false;
@@ -459,7 +660,7 @@ const I={
 
 /* ── DASHBOARD ── */
 pages.dashboard=()=>`<div class="module-page">
-  <div class="page-header"><h1>Olá, Maria Fernanda!</h1><p>Bem-vindo ao seu painel — Município de Lauro de Freitas</p></div>
+  <div class="page-header"><h1>Olá, ${currentUserType==='admin'?(localStorage.getItem('crc_admin_name')||'Admin'):((getContribuinteLogado()||{}).nome||'Contribuinte').split(' ')[0]}!</h1><p>Bem-vindo ao seu painel — Município de Lauro de Freitas</p></div>
   <div class="summary-cards">
     <div class="summary-card" onclick="navigate('extrato_divida')"><div class="summary-icon danger">${I.shield}</div><div class="summary-info"><span class="summary-label">Dívida Ativa</span><span class="summary-value" style="color:var(--danger)">R$ 4.872,35</span><span class="summary-sub">3 inscrições</span></div></div>
     <div class="summary-card" onclick="navigate('tributos')"><div class="summary-icon orange">${I.money}</div><div class="summary-info"><span class="summary-label">A Vencer</span><span class="summary-value" style="color:var(--orange)">R$ 1.590,00</span><span class="summary-sub">2 tributos</span></div></div>
@@ -508,14 +709,28 @@ const CERTIDOES_DATA=[
   {inscricao:'EMP-2024-00345',tipo:'Empresa',situacao:'Regular',vinculo:'Responsável',tipoCert:'Certidão Negativa'},
   {inscricao:'034.567.890-12',tipo:'PF',situacao:'Irregular',vinculo:'Titular',tipoCert:'Positiva c/ Efeito Negativa'},
 ];
-function emitirCertidaoPDF(idx){
+async function emitirCertidaoPDF(idx){
   const c=CERTIDOES_DATA[idx];if(!c)return;
   const modal=document.getElementById('modal-boleto');if(!modal)return;
-  const codigo='CERT-2026-'+String(Math.floor(Math.random()*99999)).padStart(5,'0')+'-'+String.fromCharCode(65+Math.floor(Math.random()*26))+Math.floor(Math.random()*9)+String.fromCharCode(65+Math.floor(Math.random()*26))+String.fromCharCode(65+Math.floor(Math.random()*26))+Math.floor(Math.random()*9);
-  const agora=new Date();
-  const emissao=agora.toLocaleDateString('pt-BR');
-  const validade=new Date(agora.getTime()+90*24*60*60*1000).toLocaleDateString('pt-BR');
-  modal.querySelector('.modal-content').innerHTML=`
+  const response=await fetch('/api/v1/certidoes/emitir',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      inscricao:c.inscricao,
+      tipo:c.tipo,
+      tipoCert:c.tipoCert,
+      vinculo:c.vinculo,
+      situacao:c.situacao
+    })
+  });
+  const payload=await response.json();
+  if(!response.ok){
+    alert(payload.erro||'Falha ao emitir certidao.');
+    return;
+  }
+  const emissao=new Date().toLocaleDateString('pt-BR');
+  const validade=new Date(payload.validadeAte).toLocaleDateString('pt-BR');
+  modal.querySelector('.modal').innerHTML=`
     <div class="modal-header"><h2>Emissão de Certidão</h2><button class="modal-close" onclick="closeModal('modal-boleto')">&times;</button></div>
     <div class="modal-body">
       <div style="text-align:center;margin-bottom:20px">
@@ -529,12 +744,12 @@ function emitirCertidaoPDF(idx){
         <div><strong>Vínculo:</strong> ${c.vinculo}</div>
         <div><strong>Emissão:</strong> ${emissao}</div>
         <div><strong>Validade:</strong> ${validade}</div>
-        <div><strong>Código:</strong> <span style="font-family:monospace;font-size:.78rem">${codigo}</span></div>
+        <div><strong>Código:</strong> <span style="font-family:monospace;font-size:.78rem">${payload.codigoAutenticacao}</span></div>
       </div>
       <div class="info-banner" style="margin-bottom:14px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>${c.situacao==='Irregular'?'Esta certidão é <strong>Positiva com Efeito de Negativa</strong> pois há parcelamento em dia.':'Esta certidão atesta a <strong>inexistência de débitos</strong> para a inscrição informada.'}</div>
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-        <button class="btn btn-primary btn-sm" onclick="alert('PDF gerado com sucesso! (integração com API de geração em implementação)');closeModal('modal-boleto')">Baixar PDF</button>
-        <button class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${codigo}');this.textContent='Copiado!';setTimeout(()=>this.textContent='Copiar Código',1500)">Copiar Código</button>
+        <button class="btn btn-primary btn-sm" onclick="window.open('${payload.urlDownload}','_blank');closeModal('modal-boleto')">Baixar PDF</button>
+        <button class="btn btn-outline btn-sm" onclick="navigator.clipboard.writeText('${payload.codigoAutenticacao}');this.textContent='Copiado!';setTimeout(()=>this.textContent='Copiar Código',1500)">Copiar Código</button>
         <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-boleto')">Fechar</button>
       </div>
     </div>`;
@@ -558,20 +773,26 @@ pages.alvara=()=>`<div class="module-page">
 </div>`;
 
 /* ── ALVARÁ FUNÇÕES ── */
-function emitirAlvaraPDF(nome,cnpj,inscricao,validade){
+async function emitirAlvaraPDF(nome,cnpj,inscricao,validade){
   const modal=document.getElementById('modal-boleto');if(!modal)return;
-  const codigo='ALV-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*99999)).padStart(5,'0');
-  modal.querySelector('.modal-content').innerHTML=`
+  const r=await fetch('/api/v1/alvaras/emitir',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({nome,cnpj,inscricao,validade})
+  });
+  const payload=await r.json();
+  if(!r.ok){alert(payload.erro||'Falha ao emitir alvara.');return;}
+  modal.querySelector('.modal').innerHTML=`
     <div class="modal-header"><h2>Alvará de Funcionamento</h2><button class="modal-close" onclick="closeModal('modal-boleto')">&times;</button></div>
     <div class="modal-body" style="text-align:center">
       <div style="width:64px;height:64px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
       <h3 style="margin-bottom:4px">Alvará Gerado</h3>
-      <p style="font-size:.84rem;color:var(--text-muted);margin-bottom:16px">Código: ${codigo}</p>
+      <p style="font-size:.84rem;color:var(--text-muted);margin-bottom:16px">Código: ${payload.codigoAutenticacao}</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left;font-size:.85rem;margin-bottom:16px">
         <div><strong>Empresa:</strong> ${nome}</div><div><strong>CNPJ:</strong> ${cnpj}</div>
         <div><strong>Inscrição:</strong> ${inscricao}</div><div><strong>Validade:</strong> ${validade}</div>
       </div>
-      <div style="display:flex;gap:8px;justify-content:center"><button class="btn btn-primary btn-sm" onclick="alert('PDF do Alvará (integração pendente)');closeModal('modal-boleto')">Baixar PDF</button><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-boleto')">Fechar</button></div>
+      <div style="display:flex;gap:8px;justify-content:center"><button class="btn btn-primary btn-sm" onclick="window.open('${payload.urlDownload}','_blank');closeModal('modal-boleto')">Baixar PDF</button><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-boleto')">Fechar</button></div>
     </div>`;
   showModal('modal-boleto');
 }
@@ -586,20 +807,26 @@ function solicitarRenovacaoAlvara(nome,cnpj,inscricao){
 }
 
 /* ── CARTÃO CGA ── */
-function gerarCartaoCGA(inscricao,nome,atividade){
+async function gerarCartaoCGA(inscricao,nome,atividade){
   const modal=document.getElementById('modal-boleto');if(!modal)return;
-  const codigo='CGA-'+new Date().getFullYear()+'-'+String(Math.floor(Math.random()*99999)).padStart(5,'0');
-  modal.querySelector('.modal-content').innerHTML=`
+  const r=await fetch('/api/v1/cga/emitir',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({inscricao,nome,atividade})
+  });
+  const payload=await r.json();
+  if(!r.ok){alert(payload.erro||'Falha ao emitir cartao CGA.');return;}
+  modal.querySelector('.modal').innerHTML=`
     <div class="modal-header"><h2>Cartão CGA</h2><button class="modal-close" onclick="closeModal('modal-boleto')">&times;</button></div>
     <div class="modal-body" style="text-align:center">
       <div style="width:64px;height:64px;border-radius:50%;background:#6366f1;display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></div>
       <h3 style="margin-bottom:4px">Cartão CGA Gerado</h3>
-      <p style="font-size:.84rem;color:var(--text-muted);margin-bottom:16px">Código: ${codigo}</p>
+      <p style="font-size:.84rem;color:var(--text-muted);margin-bottom:16px">Código: ${payload.codigoAutenticacao}</p>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:left;font-size:.85rem;margin-bottom:16px">
         <div><strong>Inscrição:</strong> ${inscricao}</div><div><strong>Razão Social:</strong> ${nome}</div>
         <div><strong>Atividade:</strong> ${atividade}</div><div><strong>Emissão:</strong> ${new Date().toLocaleDateString('pt-BR')}</div>
       </div>
-      <div style="display:flex;gap:8px;justify-content:center"><button class="btn btn-primary btn-sm" onclick="alert('PDF Cartão CGA (integração pendente)');closeModal('modal-boleto')">Baixar PDF</button><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-boleto')">Fechar</button></div>
+      <div style="display:flex;gap:8px;justify-content:center"><button class="btn btn-primary btn-sm" onclick="window.open('${payload.urlDownload}','_blank');closeModal('modal-boleto')">Baixar PDF</button><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-boleto')">Fechar</button></div>
     </div>`;
   showModal('modal-boleto');
 }
@@ -613,9 +840,16 @@ pages.cartao_cga=()=>`<div class="module-page">
 </div>`;
 
 /* ── 2ª VIA ── */
-function gerarBoleto(tributo,inscricao,valor,vencimento){
+async function gerarBoleto(tributo,inscricao,valor,vencimento){
   const codBarras='23793.38128 60000.000003 00000.000402 1 '+Math.floor(Math.random()*9000+1000)+'0000'+valor.replace(/[^\d]/g,'');
   const pixCode='00020126580014BR.GOV.BCB.PIX0136'+crypto.randomUUID().replace(/-/g,'').slice(0,36)+'5204000053039865802BR5925PREFEITURA LAURO FREITAS6015LAURO DE FREITAS62070503***6304';
+  const pdfResp=await fetch('/api/v1/financeiro/boleto',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({tributo,inscricao,valor,vencimento})
+  });
+  const pdfPayload=await pdfResp.json();
+  if(!pdfResp.ok){alert(pdfPayload.erro||'Falha ao gerar boleto.');return;}
   showModal('modal-boleto');
   setTimeout(()=>{
     const body=document.getElementById('modal-boleto-body');
@@ -646,7 +880,7 @@ function gerarBoleto(tributo,inscricao,valor,vencimento){
       <button class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('pix-code-text').textContent);alert('PIX Copia e Cola copiado!')">Copiar PIX</button>
     </div></div>
     <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-      <button class="btn btn-outline btn-sm" onclick="alert('Download do PDF iniciado (demo)')">Baixar PDF</button>
+      <button class="btn btn-outline btn-sm" onclick="window.open('${pdfPayload.urlDownload}','_blank')">Baixar PDF</button>
       <button class="btn btn-outline btn-sm" onclick="addToGoogleCalendar('Vencimento ${tributo} - ${inscricao}','${vencimento.split('/').reverse().join('-')}T09:00:00','Portal CRC - Valor: ${valor}')">Salvar na Agenda</button>
     </div>`;
   },50);
@@ -732,7 +966,7 @@ function simular(){
     const desc=total*descVista;const final=total-desc;
     html=`<div class="sim-row"><span class="sim-label">Valor Total Atualizado</span><span class="sim-val">R$ ${total.toFixed(2)}</span></div>
     <div class="sim-row"><span class="sim-label">Desconto à Vista (20%)</span><span class="sim-val" style="color:var(--accent)">- R$ ${desc.toFixed(2)}</span></div>
-    <div class="sim-row total"><span class="sim-label">Valor a Pagar</span><span class="sim-val" style="color:var(--accent);font-size:1.2rem">R$ ${final.toFixed(2)}</span></div>
+    <div class="sim-row total"><span class="sim-label">Valor a Pagar</span><span class="sim-val sim-val-strong">R$ ${final.toFixed(2)}</span></div>
     <p style="font-size:.8rem;color:var(--text-muted);margin-top:10px">Pagamento via Boleto ou PIX. Vencimento: 15/04/2026</p>`;
   }else{
     const n=parseInt(forma);const entrada=total*0.10;const restante=total-entrada;const parcela=restante/n;
@@ -740,7 +974,7 @@ function simular(){
     <div class="sim-row"><span class="sim-label">Entrada (10%)</span><span class="sim-val">R$ ${entrada.toFixed(2)}</span></div>
     <div class="sim-row"><span class="sim-label">Saldo Restante</span><span class="sim-val">R$ ${restante.toFixed(2)}</span></div>
     <div class="sim-row"><span class="sim-label">Número de Parcelas</span><span class="sim-val">${n}x</span></div>
-    <div class="sim-row total"><span class="sim-label">Valor da Parcela</span><span class="sim-val" style="color:var(--accent);font-size:1.2rem">R$ ${parcela.toFixed(2)}/mês</span></div>
+    <div class="sim-row total"><span class="sim-label">Valor da Parcela</span><span class="sim-val sim-val-strong">R$ ${parcela.toFixed(2)}/mês</span></div>
     <p style="font-size:.8rem;color:var(--text-muted);margin-top:10px">1ª parcela (entrada): 15/04/2026 · Demais parcelas: dia 15 de cada mês</p>`;
   }
   document.getElementById('sim-result').innerHTML=html;
@@ -763,7 +997,7 @@ function formalizarAcordo(){
   if(!modal)return;
   const barcode='85890000'+String(Math.floor(valorParcela*100)).padStart(11,'0')+'0'+new Date().getFullYear()+'0415'+String(Math.floor(Math.random()*9999999999)).padStart(10,'0');
   const pixCode='00020126580014BR.GOV.BCB.PIX0136'+crypto.randomUUID?crypto.randomUUID().replace(/-/g,'').slice(0,36):'a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6';
-  modal.querySelector('.modal-content').innerHTML=`
+  modal.querySelector('.modal').innerHTML=`
     <div class="modal-header"><h2>Acordo Formalizado</h2><button class="modal-close" onclick="closeModal('modal-boleto')">&times;</button></div>
     <div class="modal-body" style="text-align:center">
       <div style="background:var(--accent);color:#fff;padding:14px 20px;border-radius:10px;margin-bottom:18px;font-size:1rem">
@@ -835,7 +1069,7 @@ function emitirNFSe(){
   saveNFSes(notas);
   const modal=document.getElementById('modal-boleto');
   if(modal){
-    modal.querySelector('.modal-content').innerHTML=`
+    modal.querySelector('.modal').innerHTML=`
     <div class="modal-header"><h2>NFSe Emitida</h2><button class="modal-close" onclick="closeModal('modal-boleto')">&times;</button></div>
     <div class="modal-body" style="text-align:center">
       <div style="width:64px;height:64px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 12px"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg></div>
@@ -912,6 +1146,18 @@ function renderFichaEmpresa(f){
   const campos=[['Inscrição',f.inscricao],['Razão Social',f.razao_social],['CNPJ',f.cnpj],['Nome Fantasia',f.nome_fantasia],['Atividade Principal',f.atividade_principal],['Regime Tributário',f.regime_tributario],['Situação',f.situacao],['Data Abertura',f.data_abertura],['Endereço',f.endereco],['Bairro',f.bairro],['CEP',f.cep],['Cidade/UF',f.cidade+'/'+f.uf],['Responsável',f.responsavel],['CPF Responsável',f.cpf_responsavel]];
   return campos.map(([label,val])=>`<div class="ficha-campo"><span class="ficha-campo-label">${label}</span><span class="ficha-campo-valor">${val}</span></div>`).join('');
 }
+async function baixarFichaCadastralPdf(inscricao){
+  const f=FICHAS_DATA[inscricao];
+  if(!f){alert('Ficha não encontrada.');return;}
+  const r=await fetch('/api/v1/ficha-cadastral/pdf',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(f)
+  });
+  const payload=await r.json();
+  if(!r.ok){alert(payload.erro||'Falha ao gerar PDF da ficha.');return;}
+  window.open(payload.urlDownload,'_blank');
+}
 pages.ficha_cadastral=()=>{
   if(fichaDetalhe&&FICHAS_DATA[fichaDetalhe]){
     const f=FICHAS_DATA[fichaDetalhe];
@@ -920,7 +1166,7 @@ pages.ficha_cadastral=()=>{
     <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="voltarFichaLista()">← Voltar</button>
       <button class="btn btn-outline btn-sm" onclick="solicitarRetificacao('${f.inscricao}')">Solicitar Retificação</button>
-      <button class="btn btn-outline btn-sm">Imprimir Ficha</button>
+      <button class="btn btn-outline btn-sm" onclick="baixarFichaCadastralPdf('${f.inscricao}')">Imprimir Ficha</button>
     </div>
     <div class="card-panel"><div class="card-panel-header"><h3>${f.tipo==='imovel'?'Dados do Imóvel':'Dados da Empresa'}</h3><span class="status-badge ${f.tipo==='imovel'?'blue':'orange'}">${f.tipo==='imovel'?'Imóvel':'Empresa'}</span></div>
     <div class="card-panel-body"><div class="ficha-grid">${f.tipo==='imovel'?renderFichaImovel(f):renderFichaEmpresa(f)}</div></div></div>
@@ -940,37 +1186,33 @@ pages.ficha_cadastral=()=>{
 </div>`};
 
 /* ── AUTENTICAÇÃO ── */
-const CERTIDOES_VALIDAS={
-  'CERT-2026-00142-A7BK3':{tipo:'Certidão Negativa de Débitos',inscricao:'034.567.890-12',nome:'Maria Fernanda de Oliveira Santos',emissao:'10/03/2026',validade:'08/06/2026',situacao:'Regular'},
-  'CERT-2026-00098-D4FH8':{tipo:'Certidão Positiva com Efeito de Negativa',inscricao:'034.567.890-12',nome:'Maria Fernanda de Oliveira Santos',emissao:'15/01/2026',validade:'15/04/2026',situacao:'Regular (parcelamento em dia)'},
-};
-function verificarCertidao(){
+async function verificarCertidao(){
   const input=document.getElementById('auth-codigo');
   if(!input||!input.value.trim()){alert('Informe o código de autenticação.');return}
   const codigo=input.value.trim().toUpperCase();
   const resultado=document.getElementById('auth-resultado');
-  const cert=CERTIDOES_VALIDAS[codigo];
-  if(cert){
-    const hoje=new Date();
-    const [d,m,a]=cert.validade.split('/');
-    const dtVal=new Date(a,m-1,d);
-    const vigente=dtVal>=hoje;
+  const resp=await fetch('/api/v1/documentos/autenticar/'+encodeURIComponent(codigo));
+  if(resp.ok){
+    const cert=await resp.json();
+    const dtVal=new Date(cert.validade);
+    const vigente=dtVal>=new Date();
     resultado.innerHTML=`
     <div style="text-align:center;padding:20px 0">
       <div style="width:64px;height:64px;border-radius:50%;background:${vigente?'var(--accent)':'var(--danger)'};display:flex;align-items:center;justify-content:center;margin:0 auto 12px">
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5">${vigente?'<path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/>':'<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>'}</svg>
       </div>
-      <h3 style="color:${vigente?'var(--accent)':'var(--danger)'};margin-bottom:4px">${vigente?'CERTIDÃO VÁLIDA':'CERTIDÃO VENCIDA'}</h3>
+      <h3 style="color:${vigente?'var(--accent)':'var(--danger)'};margin-bottom:4px">${vigente?'CERTIDÃO VÁLIDA':'CERTIDÃO EXPIRADA'}</h3>
       <p style="font-size:.84rem;color:var(--text-muted);margin-bottom:16px">Código: ${codigo}</p>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:.85rem">
       <div><strong>Tipo:</strong> ${cert.tipo}</div>
       <div><strong>CPF/CNPJ:</strong> ${cert.inscricao}</div>
-      <div><strong>Nome:</strong> ${cert.nome}</div>
-      <div><strong>Situação:</strong> ${cert.situacao}</div>
-      <div><strong>Emissão:</strong> ${cert.emissao}</div>
-      <div><strong>Validade:</strong> <span style="color:${vigente?'var(--accent)':'var(--danger)'}; font-weight:700">${cert.validade}</span></div>
-    </div>`;
+      <div><strong>Nome:</strong> ${cert.titular}</div>
+      <div><strong>Situação:</strong> ${cert.valida?'Documento autenticado':'Inválido'}</div>
+      <div><strong>Emissão:</strong> ${new Date(cert.emissao).toLocaleString('pt-BR')}</div>
+      <div><strong>Validade:</strong> <span style="color:${vigente?'var(--accent)':'var(--danger)'}; font-weight:700">${new Date(cert.validade).toLocaleDateString('pt-BR')}</span></div>
+    </div>
+    <div style="margin-top:12px;text-align:center"><button class="btn btn-outline btn-sm" onclick="window.open('${cert.urlOriginal}','_blank')">Abrir PDF Original</button></div>`;
   }else{
     resultado.innerHTML=`
     <div style="text-align:center;padding:20px 0">
@@ -989,7 +1231,7 @@ pages.autenticacao=()=>`<div class="module-page">
     <p style="font-size:.84rem;color:var(--text-muted);margin-top:8px">Insira o código que aparece no rodapé da certidão emitida para confirmar sua validade.</p>
     <div id="auth-resultado" style="margin-top:16px"></div>
   </div></div>
-  <div class="info-banner" style="margin-top:14px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>Para testar: use <strong>CERT-2026-00142-A7BK3</strong> (válida) ou <strong>CERT-2026-00098-D4FH8</strong> (positiva c/ efeito negativa).</div>
+  <div class="info-banner" style="margin-top:14px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>Use o código exibido no documento emitido para validação oficial da autenticidade.</div>
 </div>`;
 
 /* ── LEGISLAÇÃO ── */
@@ -1604,7 +1846,7 @@ pages._perfil_admin=()=>{
   const users=getAdminUsers();
   const me=users.find(u=>u.login===currentAdminLogin)||{};
   const isMaster=isMasterUser(me);
-  const p=localStorage.getItem('arrecada_photo');const ph=p?`<img src="${p}">`:(me.nome||'AD').substring(0,2).toUpperCase();
+  const p=localStorage.getItem('arrecada_photo');const adminInitials=(me.nome||'Administrador').split(' ').map(n=>n[0]).filter(Boolean).slice(0,2).join('').toUpperCase()||'AD';const ph=p?`<img src="${p}">`:adminInitials;
   const perfilLabel=isMaster?'MASTER':(me.perfil||'admin').toUpperCase();
   const perfilColor=isMaster?'var(--accent)':me.perfil==='suporte'?'#4A90D9':'var(--orange)';
   return`<div class="module-page">
@@ -1754,7 +1996,7 @@ CFG_TABS.entidade=()=>{
         <div class="form-group"><label>Sincronização</label><select class="form-select"><option>Tempo Real (API)</option><option selected>A cada 15 min</option><option>A cada 1 hora</option><option>Manual</option></select></div>
       </div>
       <div class="grid-3" style="margin-top:12px">
-        ${[['Cadastro de Contribuintes','CPF/CNPJ e dados cadastrais',true],['Inscrições Imobiliárias','Imóveis e lotes',true],['Inscrições Econômicas','Empresas e atividades',true],['Lançamentos Tributários','IPTU, ISS, TFF, taxas',true],['Dívida Ativa','CDA e inscrições',true],['Parcelamentos/Acordos','Acordos e parcelas',false]].map(([t,d,on])=>`<label style="display:flex;align-items:flex-start;gap:8px;padding:8px;border:1px solid var(--border-light);border-radius:var(--r-sm);cursor:pointer${on?';background:var(--accent-glow2);border-color:var(--accent)':''}"><input type="checkbox" ${on?'checked':''} style="margin-top:2px"><div><div style="font-size:.82rem;font-weight:600">${t}</div><div style="font-size:.72rem;color:var(--text-muted)">${d}</div></div></label>`).join('')}
+        ${[['Cadastro de Contribuintes','CPF/CNPJ e dados cadastrais',true],['Inscrições Imobiliárias','Imóveis e lotes',true],['Inscrições Econômicas','Empresas e atividades',true],['Lançamentos Tributários','IPTU, ISS, TFF, taxas',true],['Dívida Ativa','CDA e inscrições',true],['Parcelamentos/Acordos','Acordos e parcelas',false]].map(([t,d,on])=>`<label class="cfg-option-card"><input class="cfg-option-check" type="checkbox" ${on?'checked':''} style="margin-top:2px"><div><div style="font-size:.82rem;font-weight:600">${t}</div><div style="font-size:.72rem;color:var(--text-muted)">${d}</div></div></label>`).join('')}
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn btn-outline btn-sm">Testar Conexão</button><button class="btn btn-primary btn-sm">Salvar Integração</button></div>
     </div>
@@ -1775,7 +2017,7 @@ CFG_TABS.govbr=()=>`
       </div>
       <div style="margin-top:14px;font-size:.84rem;font-weight:600;margin-bottom:8px">Serviços Habilitados:</div>
       <div class="grid-3">
-        ${[['Autenticação de Cidadãos','Login via Gov.BR',true],['Assinatura Digital','Documentos e certidões',true],['Validação de Identidade','CPF autenticado',true],['Selo de Confiabilidade','Selo Gov.BR no portal',true],['Notificação Gov.BR','Via plataforma federal',false],['Biometria Facial','Reconhecimento facial',false]].map(([t,d,on])=>`<label style="display:flex;align-items:flex-start;gap:8px;padding:8px;border:1px solid var(--border-light);border-radius:var(--r-sm);cursor:pointer${on?';background:var(--accent-glow2);border-color:var(--accent)':''}"><input type="checkbox" ${on?'checked':''} style="margin-top:2px"><div><div style="font-size:.82rem;font-weight:600">${t}</div><div style="font-size:.72rem;color:var(--text-muted)">${d}</div></div></label>`).join('')}
+        ${[['Autenticação de Cidadãos','Login via Gov.BR',true],['Assinatura Digital','Documentos e certidões',true],['Validação de Identidade','CPF autenticado',true],['Selo de Confiabilidade','Selo Gov.BR no portal',true],['Notificação Gov.BR','Via plataforma federal',false],['Biometria Facial','Reconhecimento facial',false]].map(([t,d,on])=>`<label class="cfg-option-card"><input class="cfg-option-check" type="checkbox" ${on?'checked':''} style="margin-top:2px"><div><div style="font-size:.82rem;font-weight:600">${t}</div><div style="font-size:.72rem;color:var(--text-muted)">${d}</div></div></label>`).join('')}
       </div>
       <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px"><button class="btn btn-outline btn-sm">Testar Conexão</button><button class="btn btn-primary btn-sm">Salvar Gov.BR</button></div>
     </div>
@@ -2121,7 +2363,7 @@ function deleteContribuinte(id){
   let contribs=getContribuintes().filter(c=>c.id!=id);
   saveContribuintes(contribs);
   renderContribuintesAdmin();
-  renderContribCards();
+  renderContribPicker();
 }
 function saveContribuinteForm(){
   const nome=document.getElementById('ce-nome').value.trim();
@@ -2149,7 +2391,7 @@ function saveContribuinteForm(){
   }
   saveContribuintes(contribs);
   renderContribuintesAdmin();
-  renderContribCards();
+  renderContribPicker();
   document.getElementById('contrib-edit-panel').style.display='none';
   alert('Contribuinte salvo com sucesso!');
 }

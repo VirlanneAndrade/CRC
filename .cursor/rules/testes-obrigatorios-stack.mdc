@@ -1,0 +1,33 @@
+---
+description: Executar e manter testes unitarios, integracao e E2E conforme stack Node.js/Express/EJS em toda implementacao
+alwaysApply: true
+---
+
+# Politica obrigatoria de testes
+
+Stack atual: Node.js (CommonJS), Express, EJS e frontend JS vanilla em `public/js`.
+
+Sempre que houver implementacao nova ou atualizacao:
+1. Criar/atualizar testes unitarios para funcoes utilitarias e regras de negocio.
+2. Criar/atualizar testes de integracao para rotas Express e contratos HTTP.
+3. Criar/atualizar testes E2E com Playwright cobrindo fluxos criticos do usuario.
+
+## Padrao minimo esperado
+
+- **Unitario**: validar logica isolada, incluindo cenarios de erro e borda.
+- **Integracao**: validar status code, payload, validacao de entrada e regressao de rotas alteradas.
+- **E2E (Playwright)**: validar pelo menos caminho feliz e um caminho de falha dos fluxos tocados.
+- **Seguranca basica**: para endpoints alterados, incluir validacao de entrada e teste de negativa (input invalido).
+
+## Estrutura recomendada
+
+- `tests/unit/**/*.test.js`
+- `tests/integration/**/*.test.js`
+- `tests/e2e/**/*.spec.js`
+
+## Criterio de conclusao de tarefa
+
+Nenhuma implementacao deve ser considerada concluida sem:
+- evidenciar testes adicionados/atualizados para o escopo alterado;
+- executar a suite relevante localmente;
+- reportar resultado dos testes executados.

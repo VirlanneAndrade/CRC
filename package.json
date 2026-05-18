@@ -5,14 +5,22 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "test": "node --test tests/unit/*.test.js tests/integration/*.test.js",
+    "test:watch": "node --test --watch tests/unit/*.test.js tests/integration/*.test.js",
+    "test:e2e": "node --test tests/e2e/*.spec.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "dotenv": "^16.4.0",
     "ejs": "^3.1.10",
     "express": "^4.21.0",
+    "express-rate-limit": "^8.1.0",
     "express-session": "^1.18.0",
+    "helmet": "^8.1.0",
     "morgan": "^1.10.0",
+    "pino": "^10.0.0",
+    "pino-http": "^11.0.0",
     "pdfkit": "^0.17.2"
   }
 }

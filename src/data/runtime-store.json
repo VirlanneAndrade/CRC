@@ -1,0 +1,181 @@
+{
+  "lgpdConsents": [
+    {
+      "id": "0405101d-1e3b-41c7-88ad-b4b35f772639",
+      "userId": "demo-user",
+      "papel": "TITULAR",
+      "versaoTermo": "v1.0-2026-05-18",
+      "hashTermo": "sha256:35dc1033e71b15c26596d36cd941edf2fdb92bdcf739b4ba4250d198121780ad",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "dataHora": "2026-05-18T18:45:02.321Z",
+      "consentimentosOpcionais": [],
+      "metodoAutenticacao": "GOV_BR_SIMULADO"
+    },
+    {
+      "id": "0697ae66-f01f-4c4b-932c-9aad9be2d40a",
+      "userId": "demo-user",
+      "papel": "TITULAR",
+      "versaoTermo": "v1.1-2026-05-18",
+      "hashTermo": "sha256:946809c07f485fe3c9c15d650e20e068a85d646caca5407e7540f87a1f173af7",
+      "ip": "::1",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36",
+      "dataHora": "2026-05-18T18:51:21.451Z",
+      "consentimentosOpcionais": [],
+      "metodoAutenticacao": "GOV_BR_SIMULADO"
+    }
+  ],
+  "notificacoesPreferencias": {},
+  "certidoesEmitidas": [
+    {
+      "codigo": "CERT-2026-86957-3D23D1",
+      "inscricao": "EMP-2024-00345",
+      "tipo": "Empresa",
+      "tipoCert": "Certidao Negativa",
+      "vinculo": "Responsavel",
+      "situacao": "Normal",
+      "emissao": "2026-05-18T18:41:53.361Z",
+      "validade": "2026-08-16T18:41:53.361Z"
+    },
+    {
+      "codigo": "CERT-2026-15989-A9ACA9",
+      "inscricao": "EMP-2024-00345",
+      "tipo": "Empresa",
+      "tipoCert": "Certidao Negativa",
+      "vinculo": "Responsavel",
+      "situacao": "Normal",
+      "emissao": "2026-05-18T18:44:27.914Z",
+      "validade": "2026-08-16T18:44:27.914Z"
+    },
+    {
+      "codigo": "CERT-2026-31801-640D6D",
+      "inscricao": "EMP-2024-00345",
+      "tipo": "Empresa",
+      "tipoCert": "Certidao",
+      "vinculo": "Responsavel",
+      "situacao": "Normal",
+      "emissao": "2026-05-18T18:49:38.650Z",
+      "validade": "2026-08-16T18:49:38.650Z"
+    },
+    {
+      "codigo": "CERT-2026-78527-86FC0C",
+      "inscricao": "EMP-2024-00345",
+      "tipo": "Empresa",
+      "tipoCert": "Certidao",
+      "vinculo": "Responsavel",
+      "situacao": "Normal",
+      "emissao": "2026-05-18T18:58:41.197Z",
+      "validade": "2026-08-16T18:58:41.197Z"
+    }
+  ],
+  "documents": [
+    {
+      "codigo": "CERT-2026-31801-640D6D",
+      "tipoDocumento": "certidao",
+      "emissao": "2026-05-18T18:49:38.650Z",
+      "validade": "2026-08-16T18:49:38.650Z",
+      "titulo": "Certidao Negativa",
+      "subtitulo": "Central de Relacionamento com o Contribuinte",
+      "fields": [
+        [
+          "inscricao",
+          "EMP-2024-00345"
+        ],
+        [
+          "tipo",
+          "Empresa"
+        ],
+        [
+          "vinculo",
+          "Responsavel"
+        ],
+        [
+          "situacao",
+          "Normal"
+        ]
+      ],
+      "filenamePrefix": "certidao"
+    },
+    {
+      "codigo": "ALV-2026-90112",
+      "tipoDocumento": "alvara",
+      "emissao": "2026-05-18T18:49:38.746Z",
+      "validade": "2027-05-18T18:49:38.746Z",
+      "titulo": "Alvara de Funcionamento",
+      "subtitulo": "Documento oficial de licenciamento",
+      "fields": [
+        [
+          "inscricao",
+          "EMP-2024-00345"
+        ],
+        [
+          "cnpj",
+          "12.345.678/0001-90"
+        ],
+        [
+          "empresa",
+          "Empresa Alpha"
+        ],
+        [
+          "validadeInformada",
+          "31/12/2026"
+        ]
+      ],
+      "filenamePrefix": "alvara"
+    },
+    {
+      "codigo": "CERT-2026-78527-86FC0C",
+      "tipoDocumento": "certidao",
+      "emissao": "2026-05-18T18:58:41.197Z",
+      "validade": "2026-08-16T18:58:41.197Z",
+      "titulo": "Certidao Negativa",
+      "subtitulo": "Central de Relacionamento com o Contribuinte",
+      "fields": [
+        [
+          "inscricao",
+          "EMP-2024-00345"
+        ],
+        [
+          "tipo",
+          "Empresa"
+        ],
+        [
+          "vinculo",
+          "Responsavel"
+        ],
+        [
+          "situacao",
+          "Normal"
+        ]
+      ],
+      "filenamePrefix": "certidao"
+    },
+    {
+      "codigo": "ALV-2026-74264",
+      "tipoDocumento": "alvara",
+      "emissao": "2026-05-18T18:58:41.349Z",
+      "validade": "2027-05-18T18:58:41.349Z",
+      "titulo": "Alvara de Funcionamento",
+      "subtitulo": "Documento oficial de licenciamento",
+      "fields": [
+        [
+          "inscricao",
+          "EMP-2024-00345"
+        ],
+        [
+          "cnpj",
+          "12.345.678/0001-90"
+        ],
+        [
+          "empresa",
+          "Empresa Alpha"
+        ],
+        [
+          "validadeInformada",
+          "31/12/2026"
+        ]
+      ],
+      "filenamePrefix": "alvara"
+    }
+  ]
+}

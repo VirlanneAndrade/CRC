@@ -18,15 +18,13 @@
       <!-- TELA CONTRIBUINTE -->
       <div class="login-center" id="login-contribuinte">
         <div class="login-logo-svg">
-          <svg viewBox="0 0 340 70" fill="none" xmlns="http://www.w3.org/2000/svg" class="logo-svg-main">
-            <rect x="8" y="40" width="10" height="22" rx="3" fill="#00D4A0" opacity="0.5"/>
-            <rect x="22" y="28" width="10" height="34" rx="3" fill="#00D4A0" opacity="0.7"/>
-            <rect x="36" y="14" width="10" height="48" rx="3" fill="#00D4A0"/>
-            <path d="M41 14 L41 5 L48 12" stroke="#00D4A0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            <circle cx="41" cy="4" r="2" fill="#00D4A0" opacity="0.6"><animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/></circle>
-            <text x="58" y="38" fill="#00D4A0" font-size="24" font-weight="900" font-family="Inter, sans-serif" letter-spacing="-0.3">CRC</text>
-            <text x="58" y="56" fill="#00D4A0" font-size="8" font-family="Inter, sans-serif" font-weight="400" opacity="0.55">Central de Relacionamento com o Contribuinte</text>
-          </svg>
+          <div class="login-logo-brand">
+            <div class="login-logo-robot" id="login-logo-robot"></div>
+            <div class="login-logo-brand-text">
+              <strong>CRC</strong>
+              <span>Central de Relacionamento com o Contribuinte</span>
+            </div>
+          </div>
         </div>
         <div class="login-card">
           <div class="login-card-header">
@@ -50,15 +48,13 @@
       <!-- TELA ADMIN -->
       <div class="login-center login-hidden" id="login-admin">
         <div class="login-logo-svg">
-          <svg viewBox="0 0 340 70" fill="none" xmlns="http://www.w3.org/2000/svg" class="logo-svg-main" style="filter:drop-shadow(0 2px 20px rgba(232,124,30,.35)) drop-shadow(0 0 40px rgba(232,124,30,.1))">
-            <rect x="8" y="40" width="10" height="22" rx="3" fill="#E87C1E" opacity="0.5"/>
-            <rect x="22" y="28" width="10" height="34" rx="3" fill="#E87C1E" opacity="0.7"/>
-            <rect x="36" y="14" width="10" height="48" rx="3" fill="#E87C1E"/>
-            <path d="M41 14 L41 5 L48 12" stroke="#E87C1E" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            <circle cx="41" cy="4" r="2" fill="#E87C1E" opacity="0.6"><animate attributeName="opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite"/></circle>
-            <text x="58" y="38" fill="#E87C1E" font-size="24" font-weight="900" font-family="Inter, sans-serif" letter-spacing="-0.3">CRC</text>
-            <text x="58" y="56" fill="#E87C1E" font-size="8" font-family="Inter, sans-serif" font-weight="400" opacity="0.55">Painel Administrativo</text>
-          </svg>
+          <div class="login-logo-brand login-logo-brand--admin">
+            <div class="login-logo-robot" id="login-logo-robot-admin"></div>
+            <div class="login-logo-brand-text">
+              <strong>CRC</strong>
+              <span>Painel Administrativo</span>
+            </div>
+          </div>
         </div>
         <div class="login-card" style="border-color:rgba(232,124,30,.35)">
           <div class="login-card-header">
@@ -85,7 +81,7 @@
     <aside id="sidebar" class="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">
-          <svg width="32" height="32" viewBox="0 0 48 48" fill="none"><rect width="48" height="48" rx="10" fill="#00D4A0"/><text x="50%" y="56%" dominant-baseline="middle" text-anchor="middle" fill="#0A1A12" font-size="14" font-weight="900" font-family="Inter">CRC</text></svg>
+          <div class="sidebar-logo-robot" id="sidebar-logo-robot"></div>
           <span class="sidebar-brand">CRC</span>
         </div>
         <button class="sidebar-collapse-btn" onclick="toggleSidebar()" id="sidebar-collapse-btn" data-tour="sidebar-toggle" title="Recolher menu">
@@ -198,6 +194,22 @@
     </div>
   </div>
 
+  <div id="modal-system" class="modal-overlay" style="display:none">
+    <div class="system-dialog system-dialog--info">
+      <div class="system-dialog-head">
+        <div class="system-dialog-robot"></div>
+        <div>
+          <h3 class="system-dialog-title">Informação</h3>
+          <p class="system-dialog-sub">Assistente CRC</p>
+        </div>
+      </div>
+      <p class="system-dialog-message"></p>
+      <div class="system-dialog-actions">
+        <button class="btn btn-primary btn-sm" onclick="closeSystemDialog()">OK</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ====== MODAIS ====== -->
   <div id="modal-notif" class="modal-overlay" style="display:none">
     <div class="modal modal-lg">
@@ -205,12 +217,45 @@
       <div class="modal-body">
         <div class="modal-robot-row"><div class="robot-container" id="robot-notif"></div><div class="robot-speech"><p>Configure <strong>alertas automáticos</strong> para nunca perder um vencimento!</p></div></div>
         <div class="notif-channel-grid">
-          <label class="notif-channel-card"><input type="checkbox" class="notif-check" checked><div class="notif-channel-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><span class="notif-channel-name">E-mail</span></label>
-          <label class="notif-channel-card"><input type="checkbox" class="notif-check"><div class="notif-channel-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></div><span class="notif-channel-name">WhatsApp</span></label>
-          <label class="notif-channel-card"><input type="checkbox" class="notif-check"><div class="notif-channel-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div><span class="notif-channel-name">SMS</span></label>
+          <label class="notif-channel-card"><input type="checkbox" class="notif-check" id="notif-email-check" checked><div class="notif-channel-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><span class="notif-channel-name">E-mail</span></label>
+          <label class="notif-channel-card"><input type="checkbox" class="notif-check" id="notif-whatsapp-check"><div class="notif-channel-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg></div><span class="notif-channel-name">WhatsApp</span></label>
+          <label class="notif-channel-card"><input type="checkbox" class="notif-check" id="notif-sms-check"><div class="notif-channel-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg></div><span class="notif-channel-name">SMS</span></label>
+        </div>
+        <div class="notif-channel-config">
+          <label class="form-group">E-mail
+            <input class="form-input" id="notif-email-destino" placeholder="seu-email@exemplo.com">
+          </label>
+          <div class="inline-row">
+            <button class="btn btn-outline btn-sm" onclick="enviarCodigoCanal('email')">Validar e-mail</button>
+            <input class="form-input" id="notif-email-codigo" placeholder="Código de 6 dígitos" style="max-width:180px">
+            <button class="btn btn-ghost btn-sm" onclick="confirmarCodigoCanal('email')">Confirmar</button>
+            <span id="notif-email-status" class="notif-status">Aguardando validação</span>
+          </div>
+        </div>
+        <div class="notif-channel-config">
+          <label class="form-group">WhatsApp
+            <input class="form-input" id="notif-whatsapp-destino" placeholder="(71) 99999-9999">
+          </label>
+          <div class="inline-row">
+            <button class="btn btn-outline btn-sm" onclick="enviarCodigoCanal('whatsapp')">Enviar código</button>
+            <input class="form-input" id="notif-whatsapp-codigo" placeholder="Código de 6 dígitos" style="max-width:180px">
+            <button class="btn btn-ghost btn-sm" onclick="confirmarCodigoCanal('whatsapp')">Confirmar</button>
+            <span id="notif-whatsapp-status" class="notif-status">Aguardando validação</span>
+          </div>
+        </div>
+        <div class="notif-channel-config">
+          <label class="form-group">SMS
+            <input class="form-input" id="notif-sms-destino" placeholder="(71) 98888-8888">
+          </label>
+          <div class="inline-row">
+            <button class="btn btn-outline btn-sm" onclick="enviarCodigoCanal('sms')">Enviar código</button>
+            <input class="form-input" id="notif-sms-codigo" placeholder="Código de 6 dígitos" style="max-width:180px">
+            <button class="btn btn-ghost btn-sm" onclick="confirmarCodigoCanal('sms')">Confirmar</button>
+            <span id="notif-sms-status" class="notif-status">Aguardando validação</span>
+          </div>
         </div>
       </div>
-      <div class="modal-footer"><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-notif')">Agora não</button><button class="btn btn-primary btn-sm" onclick="localStorage.setItem('arrecada_notif_seen','1');closeModal('modal-notif')">Salvar</button></div>
+      <div class="modal-footer"><button class="btn btn-ghost btn-sm" onclick="closeModal('modal-notif')">Agora não</button><button class="btn btn-primary btn-sm" onclick="salvarPreferenciasNotificacao()">Salvar</button></div>
     </div>
   </div>
 
