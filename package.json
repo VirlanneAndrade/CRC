@@ -9,7 +9,8 @@
     "test": "node --test tests/unit/*.test.js tests/integration/*.test.js",
     "test:watch": "node --test --watch tests/unit/*.test.js tests/integration/*.test.js",
     "test:e2e": "node --test tests/e2e/*.spec.js",
-    "doc:integracao:pdf": "node gerar-documento-integracao-pdf.js"
+    "doc:integracao:pdf": "node gerar-documento-integracao-pdf.js",
+    "doc:ativacao:pdf": "node gerar-doc-integracao-ativacao-pdf.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
