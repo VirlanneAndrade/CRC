@@ -12,6 +12,13 @@ const env = {
   EQFIS_API_BASE_URL: process.env.EQFIS_API_BASE_URL || 'http://localhost:3000/api/dte',
   EQFIS_API_KEY: process.env.EQFIS_API_KEY || '',
   EQFIS_TIMEOUT_MS: Number(process.env.EQFIS_TIMEOUT_MS || 10000),
+
+  // Integração com a API da empresa de Tributos (homologação/produção)
+  TRIBUTOS_API_BASE_URL: process.env.TRIBUTOS_API_BASE_URL || '',
+  TRIBUTOS_API_KEY: process.env.TRIBUTOS_API_KEY || '',
+  // Tipo de autenticação aceito pela API deles: 'bearer' | 'x-api-key' | 'none'
+  TRIBUTOS_AUTH_TYPE: process.env.TRIBUTOS_AUTH_TYPE || 'bearer',
+  TRIBUTOS_TIMEOUT_MS: Number(process.env.TRIBUTOS_TIMEOUT_MS || 10000),
 };
 
 module.exports = env;

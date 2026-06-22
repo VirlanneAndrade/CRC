@@ -10,6 +10,7 @@ const { buildRequestLogger } = require('./src/middlewares/requestLogger');
 const healthRouter = require('./src/routes/health');
 const dteIntegrationRouter = require('./src/routes/dteIntegration');
 const criticalFeaturesRouter = require('./src/routes/criticalFeatures');
+const tributosIntegrationRouter = require('./src/routes/tributosIntegration');
 
 const app = express();
 const PORT = env.PORT;
@@ -43,6 +44,7 @@ app.use(session({
 app.use(healthRouter);
 app.use(dteIntegrationRouter);
 app.use(criticalFeaturesRouter);
+app.use(tributosIntegrationRouter);
 
 app.get(['/dte', '/dte/*'], (_req, res) => {
   res.render('index');
