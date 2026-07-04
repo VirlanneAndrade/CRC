@@ -1,0 +1,213 @@
+// Schema Prisma do Portal CRC.
+// Modela SOMENTE dados internos do portal (administracao, configuracao,
+// LGPD, preferencias, logs e auditoria).
+//
+// Dados tributarios oficiais (contribuintes, inscricoes, lancamentos,
+// divida ativa, parcelamentos, documentos fiscais, NFSe, protocolos e
+// notificacoes fiscais) NAO sao modelados aqui: sao fonte oficial da
+// API de Tributos e devem ser consumidos via integracao.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// Perfis administrativos do portal (admin, suporte, dev, master, etc.).
+model PerfilPortal {
+  id           String                  @id @default(uuid())
+  nome         String                  @unique
+  descricao    String?
+  permissoes   Json                    @default("[]")
+  criadoEm     DateTime                @default(now())
+  atualizadoEm DateTime                @updatedAt
+  usuarios     UsuarioAdministrativo[]
+
+  @@map("perfis_portal")
+}
+
+/// Usuarios administrativos do Portal CRC.
+model UsuarioAdministrativo {
+  id            String         @id @default(uuid())
+  login         String         @unique
+  nome          String
+  email         String?        @unique
+  senhaHash     String
+  ativo         Boolean        @default(true)
+  perfilId      String?
+  perfil        PerfilPortal?  @relation(fields: [perfilId], references: [id])
+  ultimoLoginEm DateTime?
+  criadoEm      DateTime       @default(now())
+  atualizadoEm  DateTime       @updatedAt
+  logsAuditoria LogAuditoria[]
+
+  @@map("usuarios_administrativos")
+}
+
+/// Configuracao geral do portal / entidade (municipio). Registro unico.
+model ConfiguracaoPortal {
+  id             Int      @id @default(1)
+  nome           String
+  cnpj           String   @default("")
+  ibge           String   @default("")
+  endereco       String   @default("")
+  uf             String   @default("")
+  email          String   @default("")
+  telefone       String   @default("")
+  responsavel    String   @default("")
+  logo           String   @default("")
+  modoManutencao Boolean  @default(false)
+  atualizadoEm   DateTime @updatedAt
+
+  @@map("configuracao_portal")
+}
+
+/// Modulos habilitados/desabilitados no menu do portal. Registro unico.
+model ConfiguracaoModulos {
+  id           Int      @id @default(1)
+  modulos      Json     @default("{}")
+  atualizadoEm DateTime @updatedAt
+
+  @@map("configuracao_modulos")
+}
+
+/// Configuracao de acesso a API de Tributos. Registro unico.
+model ConfiguracaoApiTributos {
+  id            Int      @id @default(1)
+  apiBaseUrl    String   @default("")
+  authType      String   @default("x-api-key")
+  authToken     String   @default("")
+  healthPath    String   @default("/health")
+  timeoutMs     Int      @default(10000)
+  sincronizacao String   @default("15min")
+  recursos      Json     @default("[]")
+  atualizadoEm  DateTime @updatedAt
+
+  @@map("configuracao_api_tributos")
+}
+
+/// Configuracao dos canais de notificacao. Registro unico.
+model ConfiguracaoNotificacao {
+  id                 Int      @id @default(1)
+  emailWebhookUrl    String   @default("")
+  whatsappWebhookUrl String   @default("")
+  smsWebhookUrl      String   @default("")
+  remetentePadrao    String   @default("Portal CRC")
+  atualizadoEm       DateTime @updatedAt
+
+  @@map("configuracao_notificacao")
+}
+
+/// Configuracao do chatbot / IA. Registro unico.
+model ConfiguracaoIa {
+  id              Int      @id @default(1)
+  provedor        String   @default("")
+  modelo          String   @default("")
+  apiKey          String   @default("")
+  systemPrompt    String   @default("")
+  temperatura     Float    @default(0.7)
+  temasBloqueados Json     @default("[]")
+  atualizadoEm    DateTime @updatedAt
+
+  @@map("configuracao_ia")
+}
+
+/// Aceites de termo LGPD registrados pelo portal.
+model ConsentimentoLgpd {
+  id                      String   @id @default(uuid())
+  userId                  String
+  papel                   String
+  versaoTermo             String
+  hashTermo               String
+  ip                      String?
+  userAgent               String?
+  consentimentosOpcionais Json     @default("[]")
+  metodoAutenticacao      String
+  dataHora                DateTime @default(now())
+
+  @@index([userId])
+  @@map("consentimentos_lgpd")
+}
+
+/// Solicitacoes LGPD do titular (DSR: acesso, exclusao, correcao, etc.).
+model SolicitacaoLgpd {
+  id        String   @id @default(uuid())
+  numero    String   @unique
+  userId    String
+  tipo      String
+  descricao String
+  status    String   @default("Em analise")
+  criadoEm  DateTime @default(now())
+
+  @@index([userId])
+  @@map("solicitacoes_lgpd")
+}
+
+/// Preferencias persistentes por usuario (ex.: canais de notificacao, tema).
+model PreferenciaUsuario {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  canais       Json     @default("{}")
+  tema         String?
+  outras       Json     @default("{}")
+  atualizadoEm DateTime @updatedAt
+
+  @@map("preferencias_usuario")
+}
+
+/// Log das chamadas do portal para a API de Tributos.
+model LogIntegracao {
+  id         String   @id @default(uuid())
+  endpoint   String
+  metodo     String
+  statusHttp Int?
+  duracaoMs  Int?
+  requestId  String?
+  sucesso    Boolean  @default(false)
+  erro       String?
+  criadoEm   DateTime @default(now())
+
+  @@index([endpoint])
+  @@index([criadoEm])
+  @@map("logs_integracao")
+}
+
+/// Trilha de auditoria de acoes sensiveis.
+model LogAuditoria {
+  id        String                 @id @default(uuid())
+  usuarioId String?
+  usuario   UsuarioAdministrativo? @relation(fields: [usuarioId], references: [id])
+  acao      String
+  entidade  String?
+  detalhe   Json?
+  ip        String?
+  userAgent String?
+  criadoEm  DateTime               @default(now())
+
+  @@index([usuarioId])
+  @@index([criadoEm])
+  @@map("logs_auditoria")
+}
+
+/// Registro de documentos emitidos/consultados pelo portal.
+/// Guarda apenas referencia ao documento da API, sem duplicar a fonte oficial.
+model LogAcessoDocumento {
+  id                 String    @id @default(uuid())
+  tipo               String
+  titulo             String?
+  codigoAutenticacao String?
+  cpfCnpj            String?
+  inscricao          String?
+  urlPdf             String?
+  requestId          String?
+  dados              Json?
+  validade           DateTime?
+  criadoEm           DateTime  @default(now())
+
+  @@index([codigoAutenticacao])
+  @@index([cpfCnpj])
+  @@map("logs_acesso_documento")
+}

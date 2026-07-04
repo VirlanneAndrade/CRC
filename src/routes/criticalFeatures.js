@@ -1,7 +1,7 @@
 const express = require('express');
 const crypto = require('crypto');
 const PDFDocument = require('pdfkit');
-const { readStore, writeStore } = require('../services/runtimeStore');
+const { getRepositories } = require('../repositories');
 const { generateCodigoCertidao, maskDocumento } = require('../services/criticalUtils');
 
 const router = express.Router();
@@ -10,6 +10,7 @@ const documentPdfCache = new Map();
 const DEFAULT_ENTIDADE_CONFIG = {
   nome: 'Municipio de Lauro de Freitas',
   cnpj: '',
+  ibge: '',
   endereco: '',
   uf: '',
   email: '',
@@ -45,16 +46,45 @@ function termoHash() {
   return `sha256:${crypto.createHash('sha256').update(TERMO_HTML).digest('hex')}`;
 }
 
-function getLatestConsent(userId) {
-  const store = readStore();
-  const entries = store.lgpdConsents.filter((x) => x.userId === userId);
-  return entries.length ? entries[entries.length - 1] : null;
+function getUserId(req) {
+  return req.header('x-user-id') || 'demo-user';
+}
+
+async function safeLog(fn) {
+  try {
+    await fn();
+  } catch (_err) {
+    // Logs de auditoria/integracao nao devem quebrar a request principal.
+  }
+}
+
+function registrarAuditoria(req, { acao, entidade, detalhe }) {
+  const repos = getRepositories();
+  return safeLog(() => repos.log.addAuditoria({
+    usuarioId: req.session?.admin?.id || null,
+    acao,
+    entidade: entidade || null,
+    detalhe: detalhe || null,
+    ip: req.ip,
+    userAgent: req.header('user-agent') || null,
+  }));
+}
+
+function registrarIntegracao(entry) {
+  const repos = getRepositories();
+  return safeLog(() => repos.log.addIntegracao(entry));
+}
+
+async function getLatestConsent(userId) {
+  const repos = getRepositories();
+  return repos.lgpd.getLatestConsent(userId);
 }
 
 function normalizeEntidadeConfig(raw = {}) {
   return {
     nome: String(raw.nome || DEFAULT_ENTIDADE_CONFIG.nome).trim() || DEFAULT_ENTIDADE_CONFIG.nome,
     cnpj: String(raw.cnpj || '').trim(),
+    ibge: String(raw.ibge || '').trim(),
     endereco: String(raw.endereco || '').trim(),
     uf: String(raw.uf || '').trim(),
     email: String(raw.email || '').trim(),
@@ -97,12 +127,13 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
   }
 }
 
-function resolveEntidadeConfig(entidadePayload) {
+async function resolveEntidadeConfig(entidadePayload) {
   if (entidadePayload && typeof entidadePayload === 'object') {
     return normalizeEntidadeConfig(entidadePayload);
   }
-  const store = readStore();
-  return normalizeEntidadeConfig(store.entidadeConfig || {});
+  const repos = getRepositories();
+  const stored = await repos.config.getEntidade();
+  return normalizeEntidadeConfig(stored || {});
 }
 
 function getImageBufferFromDataUrl(dataUrl) {
@@ -253,7 +284,7 @@ function createDocumentRecord({
 }
 
 async function emitDocument(res, config) {
-  const entidade = resolveEntidadeConfig(config.entidade);
+  const entidade = await resolveEntidadeConfig(config.entidade);
   const record = createDocumentRecord({ ...config, entidade });
   const pdf = await buildPdfBuffer({
     title: record.titulo,
@@ -271,58 +302,71 @@ async function emitDocument(res, config) {
   });
   documentPdfCache.set(record.codigo, pdf);
 
-  const store = readStore();
-  store.documents.push(record);
-  if (record.tipoDocumento === 'certidao') {
-    store.certidoesEmitidas.push({
-      codigo: record.codigo,
-      inscricao: config.payload.inscricao || 'N/A',
-      tipo: config.payload.tipo || 'N/A',
-      tipoCert: config.payload.tipoCert || 'Certidao',
-      vinculo: config.payload.vinculo || 'Titular',
-      situacao: config.payload.situacao || 'Normal',
-      emissao: record.emissao,
-      validade: record.validade,
-    });
-  }
-  writeStore(store);
+  const urlPdf = `/api/v1/documentos/download/${encodeURIComponent(record.codigo)}`;
+  const inscricao = config.payload?.inscricao || null;
+  const dados = {
+    titulo: record.titulo,
+    tipoDocumento: record.tipoDocumento,
+    entidade,
+    emissao: record.emissao,
+    validade: record.validade,
+    inscricao,
+    payload: config.payload || {},
+  };
+
+  const repos = getRepositories();
+  await repos.documento.add({
+    tipo: record.tipoDocumento,
+    titulo: record.titulo,
+    codigoAutenticacao: record.codigo,
+    cpfCnpj: config.payload?.cnpj || null,
+    inscricao,
+    urlPdf,
+    validade: new Date(record.validade),
+    dados,
+  });
 
   res.status(201).json({
     codigoAutenticacao: record.codigo,
     validadeAte: record.validade,
-    urlDownload: `/api/v1/documentos/download/${encodeURIComponent(record.codigo)}`,
+    urlDownload: urlPdf,
     urlAutenticacao: `/api/v1/documentos/autenticar/${encodeURIComponent(record.codigo)}`,
   });
 }
 
-router.get('/api/v1/entidade/config', (_req, res) => {
-  const store = readStore();
-  res.json({ entidade: normalizeEntidadeConfig(store.entidadeConfig || {}) });
+router.get('/api/v1/entidade/config', async (_req, res) => {
+  const repos = getRepositories();
+  const stored = await repos.config.getEntidade();
+  res.json({ entidade: normalizeEntidadeConfig(stored || {}) });
 });
 
-router.put('/api/v1/entidade/config', (req, res) => {
-  const store = readStore();
-  store.entidadeConfig = normalizeEntidadeConfig(req.body || {});
-  writeStore(store);
-  res.json({ ok: true, entidade: store.entidadeConfig });
+router.put('/api/v1/entidade/config', async (req, res) => {
+  const repos = getRepositories();
+  const entidade = normalizeEntidadeConfig(req.body || {});
+  await repos.config.saveEntidade(entidade);
+  await registrarAuditoria(req, { acao: 'config.entidade.update', entidade: 'ConfiguracaoPortal' });
+  res.json({ ok: true, entidade });
 });
 
-router.get('/api/v1/integracoes/tributos', (_req, res) => {
-  const store = readStore();
-  res.json({ config: normalizeTributosConfig(store.tributosConfig || {}) });
+router.get('/api/v1/integracoes/tributos', async (_req, res) => {
+  const repos = getRepositories();
+  const stored = await repos.config.getTributos();
+  res.json({ config: normalizeTributosConfig(stored || {}) });
 });
 
-router.put('/api/v1/integracoes/tributos', (req, res) => {
-  const store = readStore();
-  store.tributosConfig = normalizeTributosConfig(req.body || {});
-  writeStore(store);
-  res.json({ ok: true, config: store.tributosConfig });
+router.put('/api/v1/integracoes/tributos', async (req, res) => {
+  const repos = getRepositories();
+  const config = normalizeTributosConfig(req.body || {});
+  await repos.config.saveTributos(config);
+  await registrarAuditoria(req, { acao: 'config.tributos.update', entidade: 'ConfiguracaoApiTributos' });
+  res.json({ ok: true, config });
 });
 
 router.post('/api/v1/integracoes/tributos/testar', async (req, res) => {
+  const repos = getRepositories();
   const payloadConfig = normalizeTributosConfig(req.body || {});
-  const store = readStore();
-  const config = payloadConfig.apiBaseUrl ? payloadConfig : normalizeTributosConfig(store.tributosConfig || {});
+  const stored = await repos.config.getTributos();
+  const config = payloadConfig.apiBaseUrl ? payloadConfig : normalizeTributosConfig(stored || {});
   if (!config.apiBaseUrl) return res.status(400).json({ ok: false, erro: 'API Base URL nao configurada.' });
 
   const base = config.apiBaseUrl.replace(/\/+$/, '');
@@ -335,9 +379,18 @@ router.post('/api/v1/integracoes/tributos/testar', async (req, res) => {
     else if (authType !== 'none') headers.authorization = `Bearer ${config.authToken}`;
   }
 
+  const inicio = Date.now();
   try {
     const response = await fetchWithTimeout(url, { method: 'GET', headers }, config.timeoutMs);
     const text = await response.text();
+    await registrarIntegracao({
+      endpoint: url,
+      metodo: 'GET',
+      statusHttp: response.status,
+      duracaoMs: Date.now() - inicio,
+      sucesso: response.ok,
+      erro: response.ok ? null : `HTTP ${response.status}`,
+    });
     return res.status(response.ok ? 200 : 502).json({
       ok: response.ok,
       status: response.status,
@@ -345,29 +398,39 @@ router.post('/api/v1/integracoes/tributos/testar', async (req, res) => {
       respostaPreview: text.slice(0, 280),
     });
   } catch (err) {
+    await registrarIntegracao({
+      endpoint: url,
+      metodo: 'GET',
+      statusHttp: null,
+      duracaoMs: Date.now() - inicio,
+      sucesso: false,
+      erro: err.message,
+    });
     return res.status(502).json({ ok: false, endpoint: url, erro: `Falha de conexao: ${err.message}` });
   }
 });
 
-router.get('/api/v1/notificacoes/config', (_req, res) => {
-  const store = readStore();
-  res.json({ config: normalizeNotificacoesConfig(store.notificacoesConfig || {}) });
+router.get('/api/v1/notificacoes/config', async (_req, res) => {
+  const repos = getRepositories();
+  const stored = await repos.config.getNotificacoes();
+  res.json({ config: normalizeNotificacoesConfig(stored || {}) });
 });
 
-router.put('/api/v1/notificacoes/config', (req, res) => {
-  const store = readStore();
-  store.notificacoesConfig = normalizeNotificacoesConfig(req.body || {});
-  writeStore(store);
-  res.json({ ok: true, config: store.notificacoesConfig });
+router.put('/api/v1/notificacoes/config', async (req, res) => {
+  const repos = getRepositories();
+  const config = normalizeNotificacoesConfig(req.body || {});
+  await repos.config.saveNotificacoes(config);
+  await registrarAuditoria(req, { acao: 'config.notificacoes.update', entidade: 'ConfiguracaoNotificacao' });
+  res.json({ ok: true, config });
 });
 
 router.get('/api/v1/lgpd/termo-vigente', (_req, res) => {
   res.json({ versao: TERMO_VERSAO, hash: termoHash(), html: TERMO_HTML });
 });
 
-router.get('/api/v1/lgpd/status', (req, res) => {
-  const userId = req.header('x-user-id') || 'demo-user';
-  const latest = getLatestConsent(userId);
+router.get('/api/v1/lgpd/status', async (req, res) => {
+  const userId = getUserId(req);
+  const latest = await getLatestConsent(userId);
   const acceptedCurrent = !!latest && latest.versaoTermo === TERMO_VERSAO && latest.hashTermo === termoHash();
   res.json({
     acceptedCurrent,
@@ -377,8 +440,8 @@ router.get('/api/v1/lgpd/status', (req, res) => {
   });
 });
 
-router.post('/api/v1/lgpd/aceite', (req, res) => {
-  const userId = req.header('x-user-id') || 'demo-user';
+router.post('/api/v1/lgpd/aceite', async (req, res) => {
+  const userId = getUserId(req);
   const papel = req.body.papel || 'TITULAR';
   const consentimentosOpcionais = Array.isArray(req.body.consentimentosOpcionais) ? req.body.consentimentosOpcionais : [];
   const versaoTermo = req.body.versaoTermo || TERMO_VERSAO;
@@ -387,30 +450,25 @@ router.post('/api/v1/lgpd/aceite', (req, res) => {
     return res.status(400).json({ erro: 'Versao de termo desatualizada. Recarregue o termo vigente.' });
   }
 
-  const store = readStore();
-  const aceiteId = crypto.randomUUID();
-  const aceite = {
-    id: aceiteId,
+  const repos = getRepositories();
+  const aceite = await repos.lgpd.addConsent({
     userId,
     papel,
     versaoTermo: TERMO_VERSAO,
     hashTermo: termoHash(),
     ip: req.ip,
     userAgent: req.header('user-agent') || '',
-    dataHora: new Date().toISOString(),
     consentimentosOpcionais,
     metodoAutenticacao: 'GOV_BR_SIMULADO',
-  };
-  store.lgpdConsents.push(aceite);
-  writeStore(store);
+  });
 
-  res.status(201).json({ aceiteId, dataHora: aceite.dataHora, versaoTermo: TERMO_VERSAO, hashTermo: termoHash() });
+  res.status(201).json({ aceiteId: aceite.id, dataHora: aceite.dataHora, versaoTermo: TERMO_VERSAO, hashTermo: termoHash() });
 });
 
-router.get('/api/v1/lgpd/meus-dados', (req, res) => {
-  const userId = req.header('x-user-id') || 'demo-user';
-  const store = readStore();
-  const historico = store.lgpdConsents.filter((x) => x.userId === userId);
+router.get('/api/v1/lgpd/meus-dados', async (req, res) => {
+  const userId = getUserId(req);
+  const repos = getRepositories();
+  const historico = await repos.lgpd.listConsents(userId);
   res.json({
     dadosPessoais: {
       nome: 'Usuario Portal CRC',
@@ -423,6 +481,27 @@ router.get('/api/v1/lgpd/meus-dados', (req, res) => {
     },
     historicoConsentimentos: historico,
   });
+});
+
+router.get('/api/v1/lgpd/solicitacoes', async (req, res) => {
+  const userId = getUserId(req);
+  const repos = getRepositories();
+  const solicitacoes = await repos.lgpd.listSolicitacoes(userId);
+  res.json({ solicitacoes });
+});
+
+router.post('/api/v1/lgpd/solicitacoes', async (req, res) => {
+  const userId = getUserId(req);
+  const tipo = String(req.body?.tipo || '').trim();
+  const descricao = String(req.body?.descricao || '').trim();
+  if (!tipo) return res.status(400).json({ erro: 'Tipo da solicitacao e obrigatorio.' });
+  if (!descricao) return res.status(400).json({ erro: 'Descricao da solicitacao e obrigatoria.' });
+
+  const repos = getRepositories();
+  const total = await repos.lgpd.countSolicitacoes();
+  const numero = `LGPD-${new Date().getFullYear()}-${String(total + 1).padStart(4, '0')}`;
+  const solicitacao = await repos.lgpd.addSolicitacao({ numero, userId, tipo, descricao });
+  res.status(201).json({ ok: true, solicitacao });
 });
 
 router.post('/api/v1/notificacoes/validar/enviar', (req, res) => {
@@ -442,8 +521,9 @@ router.post('/api/v1/notificacoes/teste/enviar', async (req, res) => {
   if (!canal || !destino) return res.status(400).json({ erro: 'Canal e destino sao obrigatorios.' });
   if (!['email', 'whatsapp', 'sms'].includes(canal)) return res.status(400).json({ erro: 'Canal invalido.' });
 
-  const store = readStore();
-  const cfg = normalizeNotificacoesConfig(store.notificacoesConfig || {});
+  const repos = getRepositories();
+  const stored = await repos.config.getNotificacoes();
+  const cfg = normalizeNotificacoesConfig(stored || {});
   const webhookByCanal = {
     email: cfg.emailWebhookUrl,
     whatsapp: cfg.whatsappWebhookUrl,
@@ -451,16 +531,12 @@ router.post('/api/v1/notificacoes/teste/enviar', async (req, res) => {
   };
   const webhookUrl = webhookByCanal[canal];
   const protocolo = `NTF-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 100000)).padStart(5, '0')}`;
-  const historico = {
-    protocolo,
-    canal,
-    destino: String(destino),
-    mensagem,
-    enviadoEm: new Date().toISOString(),
-    status: 'simulado',
-  };
+  let status = 'simulado';
+  let webhookStatus = null;
+  let erro = null;
 
   if (webhookUrl) {
+    const inicio = Date.now();
     try {
       const response = await fetchWithTimeout(webhookUrl, {
         method: 'POST',
@@ -473,29 +549,41 @@ router.post('/api/v1/notificacoes/teste/enviar', async (req, res) => {
           remetente: cfg.remetentePadrao,
         }),
       }, 10000);
-      historico.status = response.ok ? 'enviado' : 'falha';
-      historico.webhookStatus = response.status;
+      status = response.ok ? 'enviado' : 'falha';
+      webhookStatus = response.status;
+      await registrarIntegracao({
+        endpoint: webhookUrl,
+        metodo: 'POST',
+        statusHttp: response.status,
+        duracaoMs: Date.now() - inicio,
+        sucesso: response.ok,
+        erro: response.ok ? null : `HTTP ${response.status}`,
+      });
     } catch (err) {
-      historico.status = 'falha';
-      historico.erro = err.message;
+      status = 'falha';
+      erro = err.message;
+      await registrarIntegracao({
+        endpoint: webhookUrl,
+        metodo: 'POST',
+        statusHttp: null,
+        duracaoMs: Date.now() - inicio,
+        sucesso: false,
+        erro: err.message,
+      });
     }
   }
 
-  store.notificacoesTesteHistorico = Array.isArray(store.notificacoesTesteHistorico) ? store.notificacoesTesteHistorico : [];
-  store.notificacoesTesteHistorico.unshift(historico);
-  store.notificacoesTesteHistorico = store.notificacoesTesteHistorico.slice(0, 100);
-  writeStore(store);
-
-  const ok = historico.status !== 'falha';
+  const ok = status !== 'falha';
   return res.status(ok ? 200 : 502).json({
     ok,
     protocolo,
     modo: webhookUrl ? 'webhook' : 'simulado',
-    status: historico.status,
+    status,
+    webhookStatus,
     canal,
     destino,
     mensagem: ok ? 'Teste enviado com sucesso.' : 'Falha ao enviar teste.',
-    erro: historico.erro || null,
+    erro,
   });
 });
 
@@ -513,15 +601,29 @@ router.post('/api/v1/notificacoes/validar/conferir', (req, res) => {
   res.json({ validado: true, tentativasRestantes: Math.max(0, 3 - state.tentativas) });
 });
 
-router.put('/api/v1/notificacoes/preferencias', (req, res) => {
-  const userId = req.header('x-user-id') || 'demo-user';
+router.get('/api/v1/notificacoes/preferencias', async (req, res) => {
+  const userId = getUserId(req);
+  const repos = getRepositories();
+  const stored = await repos.preferencias.get(userId);
+  if (!stored) return res.json({ preferencias: { canais: [], tiposNotificacao: [] } });
+  const outras = stored.outras && typeof stored.outras === 'object' ? stored.outras : {};
+  res.json({
+    preferencias: {
+      canais: Array.isArray(stored.canais) ? stored.canais : [],
+      tiposNotificacao: Array.isArray(outras.tiposNotificacao) ? outras.tiposNotificacao : [],
+      updatedAt: stored.atualizadoEm || null,
+    },
+  });
+});
+
+router.put('/api/v1/notificacoes/preferencias', async (req, res) => {
+  const userId = getUserId(req);
   const canais = Array.isArray(req.body.canais) ? req.body.canais : [];
   const tiposNotificacao = Array.isArray(req.body.tiposNotificacao) ? req.body.tiposNotificacao : [];
   if (!canais.some((x) => x.validado === true)) return res.status(400).json({ erro: 'Ao menos um canal validado e obrigatorio.' });
-  const store = readStore();
-  store.notificacoesPreferencias[userId] = { canais, tiposNotificacao, updatedAt: new Date().toISOString() };
-  writeStore(store);
-  res.json({ ok: true, preferencias: store.notificacoesPreferencias[userId] });
+  const repos = getRepositories();
+  await repos.preferencias.save(userId, { canais, outras: { tiposNotificacao } });
+  res.json({ ok: true, preferencias: { canais, tiposNotificacao, updatedAt: new Date().toISOString() } });
 });
 
 router.post('/api/v1/certidoes/emitir', async (req, res) => {
@@ -642,20 +744,21 @@ router.get('/api/v1/certidoes/download/:codigo', (req, res) => {
   res.redirect(`/api/v1/documentos/download/${encodeURIComponent(codigo)}`);
 });
 
-router.get('/api/v1/documentos/autenticar/:codigo', (req, res) => {
+router.get('/api/v1/documentos/autenticar/:codigo', async (req, res) => {
   const codigo = req.params.codigo;
-  const store = readStore();
-  const record = store.documents.find((x) => x.codigo === codigo) || store.certidoesEmitidas.find((x) => x.codigo === codigo);
-  if (!record) return res.status(404).json({ valida: false });
+  const repos = getRepositories();
+  const registro = await repos.documento.findByCodigo(codigo);
+  if (!registro) return res.status(404).json({ valida: false });
+  const dados = registro.dados && typeof registro.dados === 'object' ? registro.dados : {};
   res.json({
     valida: true,
-    tipo: record.titulo || record.tipoCert || record.tipoDocumento || 'Documento',
-    entidade: record.entidade || normalizeEntidadeConfig(),
+    tipo: registro.titulo || dados.titulo || dados.tipoDocumento || 'Documento',
+    entidade: dados.entidade || normalizeEntidadeConfig(),
     titular: 'Usuario Portal CRC',
     documento: maskDocumento('03456789012'),
-    inscricao: record.inscricao || 'N/A',
-    emissao: record.emissao,
-    validade: record.validade,
+    inscricao: registro.inscricao || dados.inscricao || 'N/A',
+    emissao: dados.emissao || registro.criadoEm,
+    validade: dados.validade || registro.validade,
     hashConteudo: `sha256:${crypto.createHash('sha256').update(codigo).digest('hex')}`,
     urlOriginal: `/api/v1/documentos/download/${encodeURIComponent(codigo)}`,
   });

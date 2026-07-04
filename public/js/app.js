@@ -39,8 +39,25 @@ const DEFAULT_MODULES={
   ficha_cadastral:true,autenticacao:true,legislacao:true,procuracao:true,protocolo:true,
   dec:true,caixa_postal:true,notificacoes:true,perfil:true,faq:true,config_dev:true
 };
-function getModules(){try{return JSON.parse(localStorage.getItem('crc_modules'))||{...DEFAULT_MODULES}}catch(e){return{...DEFAULT_MODULES}}}
-function saveModules(m){localStorage.setItem('crc_modules',JSON.stringify(m));applySidebarModules()}
+let modulesCache=null;
+function getModules(){return modulesCache?{...DEFAULT_MODULES,...modulesCache}:{...DEFAULT_MODULES}}
+async function loadModulesFromServer(){
+  try{
+    const r=await api('/api/v1/modulos');
+    const j=await r.json();
+    modulesCache={...DEFAULT_MODULES,...(j.modulos||{})};
+  }catch(_e){modulesCache={...DEFAULT_MODULES}}
+  applySidebarModules();
+  return modulesCache;
+}
+async function saveModules(m){
+  modulesCache={...DEFAULT_MODULES,...m};
+  applySidebarModules();
+  const r=await api('/api/v1/modulos',{method:'PUT',body:{modulos:modulesCache}});
+  if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.erro||'Falha ao salvar modulos.');}
+  const j=await r.json().catch(()=>({}));
+  if(j.modulos){modulesCache={...DEFAULT_MODULES,...j.modulos};applySidebarModules();}
+}
 function applySidebarModules(){
   const m=getModules();
   document.querySelectorAll('.nav-item[data-page]').forEach(el=>{
@@ -74,6 +91,23 @@ let lgpdPendingResolve=null;
 let systemDialogResolve=null;
 let systemDialogMode='alert';
 const MASTER_LOGIN='admin'; // login do master — único que pode excluir
+let currentAdmin=null; // sessao admin { id, login, nome, perfil, master }
+let adminUsersCache=[];
+
+async function api(path,opts={}){
+  const o={credentials:'include',...opts};
+  o.headers={...(opts.headers||{})};
+  if(o.body&&typeof o.body!=='string'){
+    o.headers['Content-Type']='application/json';
+    o.body=JSON.stringify(o.body);
+  }
+  return fetch(path,o);
+}
+function getPortalUserId(){
+  if(currentUserType==='admin'&&currentAdmin)return 'admin-'+currentAdmin.login;
+  try{const c=getContribuinteLogado&&getContribuinteLogado();if(c&&(c.id!==undefined&&c.id!==null))return 'contribuinte-'+c.id;}catch(_e){}
+  return 'demo-user';
+}
 
 function inferDialogTone(message){
   const m=String(message||'').toLowerCase();
@@ -120,35 +154,51 @@ function showSystemConfirm(message,tone){
 if(typeof window!=='undefined'){
   window.alert=(msg)=>{showSystemDialog(msg);};
 }
-function getAdminUsers(){
+function getAdminUsers(){return adminUsersCache;}
+async function loadAdminUsers(){
   try{
-    let users=JSON.parse(localStorage.getItem('crc_admin_users'));
-    if(!users||!users.length)return defaultAdminUsers();
-    const master=users.find(u=>u.login===MASTER_LOGIN);
-    if(master&&!master.master){master.master=true;master.perfil='master';master.nome=master.nome||'Administrador Master';saveAdminUsers(users)}
-    if(!master){users.unshift({id:1,nome:'Administrador Master',email:'admin@crc.gov.br',login:'admin',senha:'admin123',perfil:'master',ativo:true,master:true});saveAdminUsers(users)}
-    return users;
-  }catch(e){return defaultAdminUsers()}
+    const r=await api('/api/v1/admin/usuarios');
+    if(!r.ok){adminUsersCache=[];return adminUsersCache;}
+    const j=await r.json();
+    adminUsersCache=Array.isArray(j.usuarios)?j.usuarios:[];
+  }catch(_e){adminUsersCache=[];}
+  return adminUsersCache;
 }
-function defaultAdminUsers(){return[{id:1,nome:'Administrador Master',email:'admin@crc.gov.br',login:'admin',senha:'admin123',perfil:'master',ativo:true,master:true},{id:2,nome:'Suporte Técnico',email:'suporte@eqfis.com.br',login:'suporte',senha:'sup2026',perfil:'suporte',ativo:true},{id:3,nome:'Desenvolvedor',email:'dev@eqfis.com.br',login:'dev',senha:'dev2026',perfil:'dev',ativo:true}]}
-function saveAdminUsers(u){localStorage.setItem('crc_admin_users',JSON.stringify(u))}
-function isMasterUser(u){return u.login===MASTER_LOGIN||u.master===true}
-function isLoggedAsMaster(){return currentAdminLogin===MASTER_LOGIN}
-function doAdminLogin(){
+function isMasterUser(u){return !!u&&(u.login===MASTER_LOGIN||u.master===true)}
+function isLoggedAsMaster(){return !!(currentAdmin&&currentAdmin.master)}
+async function doAdminLogin(){
   const login=document.getElementById('admin-login-user').value.trim();
   const senha=document.getElementById('admin-login-pass').value;
-  const users=getAdminUsers();
-  const u=users.find(x=>x.login===login&&x.senha===senha&&x.ativo);
-  if(!u){alert('Usuário ou senha inválidos.');return}
+  let r;
+  try{r=await api('/api/v1/admin/login',{method:'POST',body:{login,senha}});}
+  catch(_e){alert('Falha de conexao ao autenticar.');return}
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){alert(j.erro||'Usuário ou senha inválidos.');return}
   currentUserType='admin';
-  currentAdminLogin=u.login;
-  localStorage.setItem('crc_admin_name',u.nome);
-  localStorage.setItem('crc_admin_perfil',isMasterUser(u)?'master':u.perfil);
-  localStorage.setItem('crc_admin_login',u.login);
+  currentAdmin=j.admin;
+  currentAdminLogin=j.admin.login;
   document.getElementById('login-screen').classList.remove('active');
   document.getElementById('app-screen').classList.add('active');
   applySidebarVisibility();
+  await loadModulesFromServer();
   navigate('config_dev');
+}
+async function restoreAdminSession(){
+  try{
+    const r=await api('/api/v1/admin/me');
+    if(!r.ok)return false;
+    const j=await r.json();
+    if(!j.admin)return false;
+    currentUserType='admin';
+    currentAdmin=j.admin;
+    currentAdminLogin=j.admin.login;
+    document.getElementById('login-screen').classList.remove('active');
+    document.getElementById('app-screen').classList.add('active');
+    applySidebarVisibility();
+    await loadModulesFromServer();
+    navigate('config_dev');
+    return true;
+  }catch(_e){return false;}
 }
 function applySidebarVisibility(){
   const devSection=document.getElementById('sidebar-dev-section');
@@ -157,12 +207,12 @@ function applySidebarVisibility(){
   const ulevel=document.querySelector('.user-level');
   const topName=document.querySelector('.topbar-username');
   if(currentUserType==='admin'){
-    const adminName=localStorage.getItem('crc_admin_name')||'Admin';
-    const adminPerfil=(localStorage.getItem('crc_admin_perfil')||'admin').toUpperCase();
+    const adminName=(currentAdmin&&currentAdmin.nome)||'Admin';
+    const adminPerfil=((currentAdmin&&currentAdmin.perfil)||'admin').toUpperCase();
     if(uname)uname.textContent=adminName;
     if(ulevel)ulevel.textContent=adminPerfil;
     if(topName)topName.textContent=adminName;
-    if(!currentAdminLogin)currentAdminLogin=localStorage.getItem('crc_admin_login')||'';
+    if(!currentAdminLogin)currentAdminLogin=(currentAdmin&&currentAdmin.login)||'';
     const adminPhoto=localStorage.getItem('arrecada_photo');
     const adminInitials=adminName.split(' ').map(n=>n[0]).filter(Boolean).slice(0,2).join('').toUpperCase()||'AD';
     const sAvatar=document.getElementById('sidebar-avatar');if(sAvatar)sAvatar.innerHTML=adminPhoto?`<img src="${adminPhoto}">`:adminInitials;
@@ -186,6 +236,9 @@ function applySidebarVisibility(){
 /* ── INIT ── */
 document.addEventListener('DOMContentLoaded',()=>{
   loadTheme();loadSidebarState();loadProfile();createParticles();renderRobots();applySidebarModules();applySidebarVisibility();updateProcuradorBadge();applySidebarProcurador();
+  loadModulesFromServer();
+  loadEntidadeConfig();
+  restoreAdminSession();
   document.addEventListener('click',e=>{
     const sb=document.getElementById('sidebar');
     if(sb.classList.contains('mobile-open')&&!sb.contains(e.target)&&!e.target.closest('.mobile-menu-btn')){
@@ -328,9 +381,10 @@ async function doLogin(){
 }
 function doLogout(){
   if(getProcuradorAtivo())setProcuradorAtivo(null);
+  if(currentUserType==='admin'){api('/api/v1/admin/logout',{method:'POST'}).catch(()=>{});}
   currentUserType='contribuinte';
   currentAdminLogin='';
-  localStorage.removeItem('crc_admin_login');
+  currentAdmin=null;
   document.getElementById('app-screen').classList.remove('active');
   document.getElementById('login-screen').classList.add('active');
   switchToContribLogin();
@@ -344,7 +398,7 @@ function closeModal(id){const m=document.getElementById(id);if(m)m.style.display
 
 async function ensureLgpdConsent(){
   const key='crc_lgpd_aceite_v1';
-  const userId='demo-user';
+  const userId=getPortalUserId();
   let status;
   try{
     const resp=await fetch('/api/v1/lgpd/status',{headers:{'x-user-id':userId}});
@@ -393,7 +447,7 @@ async function aceitarLgpd(versao,hash){
   try{
     const r=await fetch('/api/v1/lgpd/aceite',{
       method:'POST',
-      headers:{'Content-Type':'application/json','x-user-id':'demo-user'},
+      headers:{'Content-Type':'application/json','x-user-id':getPortalUserId()},
       body:JSON.stringify({papel:'TITULAR',consentimentosOpcionais:[],versaoTermo:versao})
     });
     if(!r.ok){
@@ -414,8 +468,7 @@ function rejeitarLgpd(){
   lgpdPendingResolve=null;
 }
 
-function hydrateNotificacoesBase(prefix,state){
-  const prefs=JSON.parse(localStorage.getItem('crc_notif_pref')||'{}');
+function renderNotificacoesBase(prefix,state,prefs){
   const defaults={email:'usuario@exemplo.com',whatsapp:'(71) 98888-0000',sms:'(71) 97777-0000'};
   ['email','whatsapp','sms'].forEach((canal)=>{
     const dest=document.getElementById(`${prefix}-${canal}-destino`);
@@ -431,6 +484,20 @@ function hydrateNotificacoesBase(prefix,state){
       status.className=`notif-status ${validado?'ok':''}`;
     }
   });
+}
+function readNotifCache(){try{return JSON.parse(localStorage.getItem('crc_notif_pref')||'{}')}catch(_e){return{}}}
+async function hydrateNotificacoesBase(prefix,state){
+  renderNotificacoesBase(prefix,state,readNotifCache());
+  try{
+    const r=await fetch('/api/v1/notificacoes/preferencias',{headers:{'x-user-id':getPortalUserId()}});
+    if(!r.ok)return;
+    const {preferencias}=await r.json();
+    if(!preferencias||!Array.isArray(preferencias.canais))return;
+    const prefs={};
+    preferencias.canais.forEach((c)=>{prefs[c.tipo]={destino:c.destino,validado:!!c.validado};});
+    localStorage.setItem('crc_notif_pref',JSON.stringify(prefs));
+    renderNotificacoesBase(prefix,state,prefs);
+  }catch(_e){}
 }
 
 function hydrateNotificacoesModal(){hydrateNotificacoesBase('notif',notifValidationState)}
@@ -490,7 +557,7 @@ async function salvarPreferenciasNotificacaoBase(prefix,state,closeOnSuccess){
     }));
   const r=await fetch('/api/v1/notificacoes/preferencias',{
     method:'PUT',
-    headers:{'Content-Type':'application/json','x-user-id':'demo-user'},
+    headers:{'Content-Type':'application/json','x-user-id':getPortalUserId()},
     body:JSON.stringify({canais,tiposNotificacao:['vencimento','novoDocumento','acordoStatus']})
   });
   const j=await r.json();
@@ -692,7 +759,7 @@ const I={
 
 /* ── DASHBOARD ── */
 pages.dashboard=()=>`<div class="module-page">
-  <div class="page-header"><h1>Olá, ${currentUserType==='admin'?(localStorage.getItem('crc_admin_name')||'Admin'):((getContribuinteLogado()||{}).nome||'Contribuinte').split(' ')[0]}!</h1><p>Bem-vindo ao seu painel — Município de Lauro de Freitas</p></div>
+  <div class="page-header"><h1>Olá, ${currentUserType==='admin'?((currentAdmin&&currentAdmin.nome)||'Admin'):((getContribuinteLogado()||{}).nome||'Contribuinte').split(' ')[0]}!</h1><p>Bem-vindo ao seu painel — Município de Lauro de Freitas</p></div>
   <div class="summary-cards">
     <div class="summary-card" onclick="navigate('extrato_divida')"><div class="summary-icon danger">${I.shield}</div><div class="summary-info"><span class="summary-label">Dívida Ativa</span><span class="summary-value" style="color:var(--danger)">R$ 4.872,35</span><span class="summary-sub">3 inscrições</span></div></div>
     <div class="summary-card" onclick="navigate('tributos')"><div class="summary-icon orange">${I.money}</div><div class="summary-info"><span class="summary-label">A Vencer</span><span class="summary-value" style="color:var(--orange)">R$ 1.590,00</span><span class="summary-sub">2 tributos</span></div></div>
@@ -1601,7 +1668,7 @@ async function assinarEGerarPDF(){
   if(sistemas.length===0){alert('Selecione ao menos um módulo/poder.');return}
   const sistemasNomes=sistemas.map(s=>PROC_MODULOS[s]||s).join(', ');
   const outorgante=getOutorganteData();
-  const entidade=function(){try{return JSON.parse(localStorage.getItem('crc_entidade_config'))||{}}catch(e){return{}}}();
+  const entidade=getEntidadeConfig();
   const enderecoProc=procDadosRF&&procDadosRF.logradouro?
     (procDadosRF.logradouro+', '+procDadosRF.numero+(procDadosRF.complemento?' — '+procDadosRF.complemento:'')+' — '+procDadosRF.bairro+' — '+procDadosRF.municipio+'/'+procDadosRF.uf):'';
   const dataAssinatura=new Date().toLocaleString('pt-BR');
@@ -2097,21 +2164,50 @@ pages.caixa_postal=()=>{
 
 /* ── LGPD — FORMULÁRIO ELETRÔNICO ── */
 let lgpdView='lista';
-function getLGPDSolicitacoes(){const s=localStorage.getItem('crc_lgpd');return s?JSON.parse(s):[]}
-function saveLGPDSolicitacoes(l){localStorage.setItem('crc_lgpd',JSON.stringify(l))}
+let lgpdSolicitacoesCache=[];
+function getLGPDSolicitacoes(){return lgpdSolicitacoesCache;}
+async function loadLGPDSolicitacoes(){
+  try{
+    const r=await fetch('/api/v1/lgpd/solicitacoes',{headers:{'x-user-id':getPortalUserId()},credentials:'include'});
+    if(!r.ok){lgpdSolicitacoesCache=[];return lgpdSolicitacoesCache;}
+    const j=await r.json();
+    lgpdSolicitacoesCache=(j.solicitacoes||[]).map(s=>({
+      numero:s.numero,tipo:s.tipo,descricao:s.descricao,
+      data:s.criadoEm?new Date(s.criadoEm).toLocaleDateString('pt-BR'):'',
+      status:s.status||'Em análise'
+    }));
+  }catch(_e){lgpdSolicitacoesCache=[];}
+  return lgpdSolicitacoesCache;
+}
+async function hydrateLGPDList(){
+  await loadLGPDSolicitacoes();
+  if(currentPage==='formulario_lgpd'&&lgpdView==='lista'){
+    const c=document.getElementById('page-container');
+    if(c)c.innerHTML=pages.formulario_lgpd();
+  }
+}
 function showNovaLGPD(){lgpdView='nova';navigate('formulario_lgpd')}
 function voltarListaLGPD(){lgpdView='lista';navigate('formulario_lgpd')}
-function enviarSolicitacaoLGPD(){
+async function enviarSolicitacaoLGPD(){
   const tipo=document.getElementById('lgpd-tipo');
   const desc=document.getElementById('lgpd-desc');
   if(!tipo||tipo.value==='Selecione...'||!desc||!desc.value.trim()){alert('Preencha tipo e descrição.');return}
   const termos=document.getElementById('lgpd-termos');
   if(!termos||!termos.checked){alert('Aceite os termos para prosseguir.');return}
-  const solic=getLGPDSolicitacoes();
-  const num='LGPD-'+new Date().getFullYear()+'-'+String(solic.length+1).padStart(4,'0');
-  solic.unshift({numero:num,tipo:tipo.value,descricao:desc.value.trim(),data:new Date().toLocaleDateString('pt-BR'),status:'Em análise'});
-  saveLGPDSolicitacoes(solic);
+  let r;
+  try{
+    r=await fetch('/api/v1/lgpd/solicitacoes',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','x-user-id':getPortalUserId()},
+      credentials:'include',
+      body:JSON.stringify({tipo:tipo.value,descricao:desc.value.trim()})
+    });
+  }catch(_e){alert('Falha de conexao ao registrar solicitacao.');return}
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){alert(j.erro||'Nao foi possivel registrar a solicitacao.');return}
+  const num=j.solicitacao&&j.solicitacao.numero?j.solicitacao.numero:'LGPD';
   alert('Solicitação '+num+' registrada com sucesso! Prazo de resposta: até 15 dias úteis conforme LGPD.');
+  await loadLGPDSolicitacoes();
   lgpdView='lista';navigate('formulario_lgpd');
 }
 
@@ -2120,7 +2216,7 @@ async function enviarTesteAlerta(canal,prefix='notif-admin'){
   const statusEl=document.getElementById(`${prefix}-${canal}-status`);
   const destino=(destinoEl?.value||'').trim();
   if(!destino){alert('Informe o destino para teste.');return;}
-  const mensagem=`Teste de alerta ${canal.toUpperCase()} enviado pelo perfil ${(localStorage.getItem('crc_admin_perfil')||'admin').toUpperCase()}.`;
+  const mensagem=`Teste de alerta ${canal.toUpperCase()} enviado pelo perfil ${((currentAdmin&&currentAdmin.perfil)||'admin').toUpperCase()}.`;
   if(statusEl){statusEl.textContent='Enviando...';statusEl.className='notif-status';}
   const r=await fetch('/api/v1/notificacoes/teste/enviar',{
     method:'POST',
@@ -2254,9 +2350,12 @@ pages.perfil=()=>{
     <div class="govbr-level-card${c.govbr==='Ouro'?' current':''}"><div class="govbr-level-name" style="color:var(--accent)">Ouro${c.govbr==='Ouro'?' — Seu nível':''}</div><div class="govbr-level-desc">Certificado digital</div><ul class="govbr-services"><li>Tudo</li><li>e-Procuração</li><li>Domicílio Eletrônico</li></ul></div>
   </div></div></div>
 </div>`};
+function getMeAdmin(){
+  const cached=adminUsersCache.find(u=>currentAdmin&&u.id===currentAdmin.id);
+  return {...(cached||{}),...(currentAdmin||{}),email:(cached&&cached.email)||''};
+}
 pages._perfil_admin=()=>{
-  const users=getAdminUsers();
-  const me=users.find(u=>u.login===currentAdminLogin)||{};
+  const me=getMeAdmin();
   const isMaster=isMasterUser(me);
   const p=localStorage.getItem('arrecada_photo');const adminInitials=(me.nome||'Administrador').split(' ').map(n=>n[0]).filter(Boolean).slice(0,2).join('').toUpperCase()||'AD';const ph=p?`<img src="${p}">`:adminInitials;
   const perfilLabel=isMaster?'MASTER':(me.perfil||'admin').toUpperCase();
@@ -2309,33 +2408,33 @@ pages._perfil_admin=()=>{
   </div>
   <div style="display:flex;justify-content:flex-end;margin-top:12px;gap:8px"><button class="btn btn-ghost btn-sm">Cancelar</button><button class="btn btn-primary btn-sm" onclick="salvarAdminPerfil()">Salvar Perfil</button></div>
 </div>`};
-function salvarAdminPerfil(){
-  const users=getAdminUsers();
-  const me=users.find(u=>u.login===currentAdminLogin);
-  if(!me)return;
+async function salvarAdminPerfil(){
+  if(!currentAdmin)return;
   const nome=document.getElementById('adm-perfil-nome')?.value.trim();
   const email=document.getElementById('adm-perfil-email')?.value.trim();
   if(!nome){alert('O nome é obrigatório.');return}
-  me.nome=nome;me.email=email;
-  saveAdminUsers(users);
-  localStorage.setItem('crc_admin_name',nome);
+  const r=await api('/api/v1/admin/usuarios/'+currentAdmin.id,{method:'PUT',body:{nome,email}});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){alert(j.erro||'Não foi possível atualizar o perfil.');return}
+  currentAdmin.nome=nome;
+  await loadAdminUsers();
   applySidebarVisibility();
   alert('Perfil atualizado!');
   navigate('perfil');
 }
-function salvarSenhaAdminPerfil(){
-  const users=getAdminUsers();
-  const me=users.find(u=>u.login===currentAdminLogin);
-  if(!me)return;
+async function salvarSenhaAdminPerfil(){
+  if(!currentAdmin)return;
   const atual=document.getElementById('adm-perfil-senha-atual')?.value;
   const nova=document.getElementById('adm-perfil-senha-nova')?.value;
   const confirma=document.getElementById('adm-perfil-senha-confirma')?.value;
   if(!atual){alert('Digite sua senha atual.');return}
-  if(me.senha!==atual){alert('Senha atual incorreta.');return}
   if(!nova||nova.length<4){alert('A nova senha deve ter pelo menos 4 caracteres.');return}
   if(nova!==confirma){alert('As senhas não conferem.');return}
-  me.senha=nova;
-  saveAdminUsers(users);
+  const verify=await api('/api/v1/admin/login',{method:'POST',body:{login:currentAdmin.login,senha:atual}});
+  if(!verify.ok){alert('Senha atual incorreta.');return}
+  const r=await api('/api/v1/admin/usuarios/'+currentAdmin.id+'/senha',{method:'POST',body:{senha:nova}});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){alert(j.erro||'Não foi possível alterar a senha.');return}
   alert('Senha alterada com sucesso!');
   document.getElementById('adm-perfil-senha-atual').value='';
   document.getElementById('adm-perfil-senha-nova').value='';
@@ -2359,7 +2458,7 @@ pages.config_dev=()=>{
   const labels={entidade:'Entidade',govbr:'Gov.BR',ia:'IA Chatbot',procuracao_tpl:'Procuração',modulos:'Módulos',usuarios:'Usuários',contribuintes:'Contribuintes',config:'Integrações',logs:'Logs'};
   return `<div class="module-page">
   <div class="page-header"><h1>Configurações do Sistema</h1><p>Painel exclusivo — admin, suporte e desenvolvedores.</p></div>
-  <div class="info-banner warning"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Acesso restrito. Logado como: <strong>${localStorage.getItem('crc_admin_name')||'Admin'}</strong> (${(localStorage.getItem('crc_admin_perfil')||'admin').toUpperCase()})${isLoggedAsMaster()?' — <strong style="color:var(--accent)">MASTER</strong>':''}</div>
+  <div class="info-banner warning"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>Acesso restrito. Logado como: <strong>${(currentAdmin&&currentAdmin.nome)||'Admin'}</strong> (${((currentAdmin&&currentAdmin.perfil)||'admin').toUpperCase()})${isLoggedAsMaster()?' — <strong style="color:var(--accent)">MASTER</strong>':''}</div>
   <div class="cfg-tabs-wrapper">
     ${tabs.map(t=>`<button class="cfg-tab-btn${t===cfgTab?' active':''}" data-tab="${t}" onclick="switchCfgTab('${t}')">${labels[t]}</button>`).join('')}
   </div>
@@ -2370,26 +2469,32 @@ pages.config_dev=()=>{
 const CFG_TABS={};
 
 /* ── ABA: ENTIDADE ── */
-function getEntidadeConfig(){try{return JSON.parse(localStorage.getItem('crc_entidade_config'))||{}}catch(e){return{}}}
+let entidadeCache={};
+function getEntidadeConfig(){return {...entidadeCache};}
+async function loadEntidadeConfig(){
+  try{
+    const r=await api('/api/v1/entidade/config');
+    if(r.ok){const j=await r.json();entidadeCache=j.entidade||{};}
+  }catch(_e){}
+  return entidadeCache;
+}
 async function saveEntidadeConfig(){
-  const c=getEntidadeConfig();
+  const c={...entidadeCache};
   c.nome=document.getElementById('ent-nome')?.value||'';c.cnpj=document.getElementById('ent-cnpj')?.value||'';
   c.ibge=document.getElementById('ent-ibge')?.value||'';c.uf=document.getElementById('ent-uf')?.value||'BA';
   c.responsavel=document.getElementById('ent-responsavel')?.value||'';c.email=document.getElementById('ent-email')?.value||'';
   c.telefone=document.getElementById('ent-telefone')?.value||'';c.endereco=document.getElementById('ent-endereco')?.value||'';
-  localStorage.setItem('crc_entidade_config',JSON.stringify(c));
   try{
-    await fetch('/api/v1/entidade/config',{
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(c)
-    });
+    const r=await api('/api/v1/entidade/config',{method:'PUT',body:c});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){alert(j.erro||'Não foi possível salvar a entidade.');return;}
+    entidadeCache=j.entidade||c;
     alert('Entidade salva! O logotipo e dados serão usados no cabeçalho dos documentos.');
   }catch(_err){
-    alert('Entidade salva localmente. Não foi possível sincronizar no servidor agora.');
+    alert('Não foi possível sincronizar a entidade no servidor agora.');
   }
 }
-function populateEntidadeConfig(){const c=getEntidadeConfig();['nome','cnpj','ibge','uf','responsavel','email','telefone','endereco'].forEach(k=>{const el=document.getElementById('ent-'+k);if(el&&c[k])el.value=c[k]});const logo=document.getElementById('ent-logo-preview');if(logo&&c.logo){logo.innerHTML=`<img src="${c.logo}" alt="Logotipo">`;logo.style.display='flex'}}
+function populateEntidadeConfig(){loadEntidadeConfig().then(()=>{const c=entidadeCache;['nome','cnpj','ibge','uf','responsavel','email','telefone','endereco'].forEach(k=>{const el=document.getElementById('ent-'+k);if(el&&c[k])el.value=c[k]});const logo=document.getElementById('ent-logo-preview');if(logo&&c.logo){logo.innerHTML=`<img src="${c.logo}" alt="Logotipo">`;logo.style.display='flex'}});}
 function handleEntidadeLogoUpload(e){
   const f=e.target.files[0];if(!f)return;
   if(f.type==='image/svg+xml'){
@@ -2399,8 +2504,7 @@ function handleEntidadeLogoUpload(e){
   }
   const r=new FileReader();
   r.onload=function(ev){
-    const c=getEntidadeConfig();c.logo=ev.target.result;
-    localStorage.setItem('crc_entidade_config',JSON.stringify(c));
+    entidadeCache.logo=ev.target.result;
     const p=document.getElementById('ent-logo-preview');
     if(p){p.innerHTML='<img src="'+ev.target.result+'" alt="Logotipo">';p.style.display='flex'}
   };
@@ -2464,16 +2568,33 @@ CFG_TABS.govbr=()=>`
   </div>`;
 
 /* ── ABA: IA CHATBOT ── */
-function getConfigIA(){try{return JSON.parse(localStorage.getItem('crc_config_ia'))||{}}catch(e){return{}}}
-function saveConfigIA(){
+let iaCache={};
+function getConfigIA(){return {...iaCache};}
+async function loadConfigIA(){
+  try{
+    const r=await api('/api/v1/ia/config');
+    if(r.ok){const j=await r.json();const cfg=j.config||{};iaCache={provedor:cfg.provedor||'',modelo:cfg.modelo||'',prompt:cfg.systemPrompt||'',temperatura:cfg.temperatura!==undefined?String(cfg.temperatura):'0.3',hasApiKey:!!cfg.hasApiKey,apiKeyMask:cfg.apiKeyMask||''};}
+  }catch(_e){}
+  return iaCache;
+}
+async function saveConfigIA(){
   const apiKey=document.getElementById('ia-api-key')?.value||'';
-  const prompt=document.getElementById('ia-prompt')?.value||'';
+  const systemPrompt=document.getElementById('ia-prompt')?.value||'';
   const provedor=document.getElementById('ia-provedor')?.value||'openai';
   const modelo=document.getElementById('ia-modelo')?.value||'';
   const temp=document.getElementById('ia-temp')?.value||'0.3';
-  localStorage.setItem('crc_config_ia',JSON.stringify({apiKey,prompt,provedor,modelo,temperatura:temp}));
-  alert('Configurações da IA salvas! Token e prompt serão usados pelo chatbot.');}
-function populateConfigIA(){const c=getConfigIA();const el=document.getElementById('ia-api-key');if(el)el.value=c.apiKey||'';const p=document.getElementById('ia-prompt');if(p)p.value=c.prompt||'';const pr=document.getElementById('ia-provedor');if(pr)pr.value=c.provedor||'openai';const m=document.getElementById('ia-modelo');if(m)m.value=c.modelo||'';const t=document.getElementById('ia-temp');if(t)t.value=c.temperatura||'0.3'}
+  const payload={provedor,modelo,systemPrompt,temperatura:Number(temp)||0,temasBloqueados:iaCache.temasBloqueados||[]};
+  if(apiKey.trim())payload.apiKey=apiKey.trim();
+  try{
+    const r=await api('/api/v1/ia/config',{method:'PUT',body:payload});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){alert(j.erro||'Não foi possível salvar as configurações de IA.');return;}
+    await loadConfigIA();
+    const el=document.getElementById('ia-api-key');if(el){el.value='';el.placeholder=iaCache.hasApiKey?(iaCache.apiKeyMask||'Chave configurada'):'sk-...';}
+    alert('Configurações da IA salvas! Token e prompt serão usados pelo chatbot.');
+  }catch(_err){alert('Falha de conexao ao salvar configuracoes de IA.');}
+}
+function populateConfigIA(){loadConfigIA().then(()=>{const c=iaCache;const el=document.getElementById('ia-api-key');if(el){el.value='';el.placeholder=c.hasApiKey?(c.apiKeyMask||'Chave configurada'):'sk-...';}const p=document.getElementById('ia-prompt');if(p)p.value=c.prompt||'';const pr=document.getElementById('ia-provedor');if(pr)pr.value=c.provedor||'openai';const m=document.getElementById('ia-modelo');if(m)m.value=c.modelo||'';const t=document.getElementById('ia-temp');if(t)t.value=c.temperatura||'0.3'});}
 CFG_TABS.ia=()=>{
   const c=getConfigIA();
   const provs=[{v:'openai',l:'OpenAI (GPT-4o)'},{v:'anthropic',l:'Anthropic (Claude)'},{v:'google',l:'Google (Gemini)'},{v:'ollama',l:'LLM Local (Ollama)'}];
@@ -2547,7 +2668,7 @@ function getTemplateProcuracao(){
   return saved||DEFAULT_TEMPLATE_PROC;
 }
 function saveTemplateProcuracao(){
-  const perfil=localStorage.getItem('crc_admin_perfil')||'';
+  const perfil=(currentAdmin&&currentAdmin.perfil)||'';
   if(perfil!=='master'&&perfil!=='dev'&&perfil!=='suporte'){alert('Apenas Dev, Suporte ou Master podem alterar o modelo.');return}
   const t=document.getElementById('tpl-proc-editor')?.value;
   if(!t||!t.trim()){alert('O modelo não pode ficar vazio.');return}
@@ -2582,7 +2703,7 @@ const TPL_PLACEHOLDERS=[
   ['{hora}','Hora atual (hh:mm:ss)'],
 ];
 CFG_TABS.procuracao_tpl=()=>{
-  const perfil=localStorage.getItem('crc_admin_perfil')||'';
+  const perfil=(currentAdmin&&currentAdmin.perfil)||'';
   const canEdit=perfil==='master'||perfil==='dev'||perfil==='suporte';
   return `
   <div class="card-panel" style="margin-bottom:16px">
@@ -2953,15 +3074,19 @@ function renderModulesGrid(){
     return `<label style="display:flex;align-items:center;gap:8px;padding:10px;border:1px solid var(--border-light);border-radius:var(--r-sm);cursor:pointer${on?';background:var(--accent-glow2);border-color:var(--accent)':''}"><input type="checkbox" data-module="${k}" ${on?'checked':''}><span style="font-size:.84rem;font-weight:600">${label}</span></label>`;
   }).join('');
 }
-function saveModulesFromUI(){
+async function saveModulesFromUI(){
   const m=getModules();
   document.querySelectorAll('#modules-grid input[data-module]').forEach(cb=>{m[cb.dataset.module]=cb.checked});
-  saveModules(m);
-  alert('Módulos salvos! Menu lateral atualizado.');
+  try{
+    await saveModules(m);
+    alert('Módulos salvos! Menu lateral atualizado.');
+  }catch(err){
+    alert(err.message||'Não foi possível salvar os módulos.');
+  }
 }
 
 /* ── Admin users CRUD ── */
-function renderAdminUsersTable(){
+function renderAdminUsersTableFromCache(){
   const el=document.getElementById('admin-users-table');if(!el)return;
   const users=getAdminUsers();
   const loggedIsMaster=isLoggedAsMaster();
@@ -2969,23 +3094,27 @@ function renderAdminUsersTable(){
   el.innerHTML=`<table class="data-table"><thead><tr><th>Nome</th><th>Login</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>Ações</th></tr></thead><tbody>
     ${users.map(u=>{
       const uIsMaster=isMasterUser(u);
-      const perfilLabel=uIsMaster?'MASTER':u.perfil.toUpperCase();
+      const perfilLabel=uIsMaster?'MASTER':String(u.perfil||'admin').toUpperCase();
       let acoes='';
       if(uIsMaster){
         if(loggedIsMaster){
-          acoes=`<button class="table-action-btn" onclick="editAdminUser(${u.id})">Editar</button><button class="table-action-btn" onclick="changeOwnPassword()">Alterar Senha</button>`;
+          acoes=`<button class="table-action-btn" onclick="editAdminUser('${u.id}')">Editar</button><button class="table-action-btn" onclick="changeOwnPassword()">Alterar Senha</button>`;
         }else{
           acoes='<span style="font-size:.72rem;color:var(--text-muted)">Protegido</span>';
         }
       }else{
-        acoes=`<button class="table-action-btn" onclick="editAdminUser(${u.id})">Editar</button><button class="table-action-btn" onclick="resetUserPassword(${u.id})">Resetar Senha</button>`;
+        acoes=`<button class="table-action-btn" onclick="editAdminUser('${u.id}')">Editar</button><button class="table-action-btn" onclick="resetUserPassword('${u.id}')">Resetar Senha</button>`;
         if(loggedIsMaster){
-          acoes+=`<button class="table-action-btn" style="color:var(--danger);border-color:var(--danger)" onclick="deleteAdminUser(${u.id})">Excluir</button>`;
+          acoes+=`<button class="table-action-btn" style="color:var(--danger);border-color:var(--danger)" onclick="deleteAdminUser('${u.id}')">Excluir</button>`;
         }
       }
-      return `<tr${uIsMaster?' style="background:var(--accent-glow2)"':''}><td style="font-weight:600">${u.nome}${uIsMaster?' <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="vertical-align:middle"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>':''}</td><td>${u.login}</td><td>${u.email}</td><td><span class="status-badge ${perfilBadge[u.perfil]||'gray'}">${perfilLabel}</span></td><td><span class="status-badge ${u.ativo?'green':'red'}">${u.ativo?'Ativo':'Inativo'}</span></td><td class="table-actions">${acoes}</td></tr>`;
+      return `<tr${uIsMaster?' style="background:var(--accent-glow2)"':''}><td style="font-weight:600">${u.nome}${uIsMaster?' <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" style="vertical-align:middle"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>':''}</td><td>${u.login}</td><td>${u.email||''}</td><td><span class="status-badge ${perfilBadge[u.perfil]||'gray'}">${perfilLabel}</span></td><td><span class="status-badge ${u.ativo?'green':'red'}">${u.ativo?'Ativo':'Inativo'}</span></td><td class="table-actions">${acoes}</td></tr>`;
     }).join('')}
   </tbody></table>`;
+}
+async function renderAdminUsersTable(){
+  await loadAdminUsers();
+  renderAdminUsersTableFromCache();
 }
 function showNewUserForm(){
   document.getElementById('new-user-form-panel').style.display='block';
@@ -2996,23 +3125,22 @@ function showNewUserForm(){
   document.getElementById('nu-ativo').value='true';
 }
 function editAdminUser(id){
-  const users=getAdminUsers();
-  const u=users.find(x=>x.id==id);
+  const u=getAdminUsers().find(x=>String(x.id)===String(id));
   if(!u)return;
   if(isMasterUser(u)&&!isLoggedAsMaster()){alert('Apenas o Master pode editar seu próprio perfil.');return}
   document.getElementById('new-user-form-panel').style.display='block';
   document.getElementById('user-form-title').textContent='Editar Usuário — '+u.nome;
   document.getElementById('nu-edit-id').value=String(u.id);
   document.getElementById('nu-nome').value=u.nome;
-  document.getElementById('nu-email').value=u.email;
+  document.getElementById('nu-email').value=u.email||'';
   document.getElementById('nu-login').value=u.login;
-  document.getElementById('nu-login').disabled=isMasterUser(u);
+  document.getElementById('nu-login').disabled=true;
   document.getElementById('nu-senha').value='';
-  document.getElementById('nu-senha').placeholder=isMasterUser(u)?'Nova senha (deixe vazio para manter)':'Deixe vazio para manter a atual';
-  document.getElementById('nu-perfil').value=isMasterUser(u)?'admin':u.perfil;
+  document.getElementById('nu-senha').placeholder=isMasterUser(u)?'Alterar senha em Meu Perfil':'Deixe vazio para manter a atual';
+  document.getElementById('nu-perfil').value=isMasterUser(u)?'admin':(u.perfil||'admin');
   document.getElementById('nu-ativo').value=u.ativo?'true':'false';
 }
-function saveNewUser(){
+async function saveNewUser(){
   const editId=document.getElementById('nu-edit-id')?.value;
   const nome=document.getElementById('nu-nome').value.trim();
   const email=document.getElementById('nu-email').value.trim();
@@ -3020,73 +3148,68 @@ function saveNewUser(){
   const senha=document.getElementById('nu-senha').value;
   const perfil=document.getElementById('nu-perfil').value;
   const ativo=document.getElementById('nu-ativo').value==='true';
-  const users=getAdminUsers();
   if(editId){
-    const idx=users.findIndex(u=>u.id==editId);
-    if(idx===-1){alert('Usuário não encontrado.');return}
-    const u=users[idx];
+    const u=getAdminUsers().find(x=>String(x.id)===String(editId));
+    if(!u){alert('Usuário não encontrado.');return}
     if(isMasterUser(u)&&!isLoggedAsMaster()){alert('Sem permissão para editar o Master.');return}
     if(!nome){alert('O nome é obrigatório.');return}
-    u.nome=nome;
-    u.email=email;
-    if(!isMasterUser(u))u.perfil=perfil;
-    u.ativo=ativo;
-    if(senha)u.senha=senha;
-    if(isMasterUser(u)&&u.id===Number(editId)){
-      localStorage.setItem('crc_admin_name',u.nome);
-      applySidebarVisibility();
-    }
-    saveAdminUsers(users);
+    const body={nome,email};
+    if(!isMasterUser(u))body.perfil=perfil;
+    const r=await api('/api/v1/admin/usuarios/'+u.id,{method:'PUT',body});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok){alert(j.erro||'Não foi possível atualizar o usuário.');return}
+    await api('/api/v1/admin/usuarios/'+u.id+'/ativo',{method:'PATCH',body:{ativo}});
+    if(senha)await api('/api/v1/admin/usuarios/'+u.id+'/senha',{method:'POST',body:{senha}});
+    if(currentAdmin&&String(u.id)===String(currentAdmin.id)){currentAdmin.nome=nome;applySidebarVisibility();}
     document.getElementById('new-user-form-panel').style.display='none';
-    renderAdminUsersTable();
+    await renderAdminUsersTable();
     alert('Usuário atualizado!');
     return;
   }
   if(!nome||!login||!senha){alert('Preencha nome, login e senha.');return}
-  if(users.find(u=>u.login===login)){alert('Login já existe.');return}
-  users.push({id:Date.now(),nome,email,login,senha,perfil,ativo});
-  saveAdminUsers(users);
+  const r=await api('/api/v1/admin/usuarios',{method:'POST',body:{nome,email,login,senha,perfil}});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){alert(j.erro||'Não foi possível criar o usuário.');return}
+  if(!ativo&&j.usuario){await api('/api/v1/admin/usuarios/'+j.usuario.id+'/ativo',{method:'PATCH',body:{ativo:false}});}
   document.getElementById('new-user-form-panel').style.display='none';
-  renderAdminUsersTable();
+  await renderAdminUsersTable();
   alert('Usuário criado!');
 }
-function resetUserPassword(id){
-  const users=getAdminUsers();
-  const u=users.find(x=>x.id==id);
+async function resetUserPassword(id){
+  const u=getAdminUsers().find(x=>String(x.id)===String(id));
   if(!u)return;
   if(isMasterUser(u)){alert('A senha do Master não pode ser resetada. Apenas o próprio Master pode alterá-la.');return}
   const novaSenha='crc'+String(Math.floor(Math.random()*900000)+100000);
   if(!confirm('Gerar nova senha para "'+u.nome+'"?\n\nA nova senha será: '+novaSenha))return;
-  u.senha=novaSenha;
-  saveAdminUsers(users);
-  renderAdminUsersTable();
+  const r=await api('/api/v1/admin/usuarios/'+u.id+'/senha',{method:'POST',body:{senha:novaSenha}});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){alert(j.erro||'Não foi possível resetar a senha.');return}
   alert('Senha resetada!\n\nUsuário: '+u.login+'\nNova senha: '+novaSenha+'\n\nInforme ao usuário.');
 }
-function changeOwnPassword(){
-  if(!isLoggedAsMaster()){alert('Esta função é exclusiva do Master.');return}
+async function changeOwnPassword(){
+  if(!isLoggedAsMaster()||!currentAdmin){alert('Esta função é exclusiva do Master.');return}
   const senhaAtual=prompt('Digite sua senha ATUAL:');
   if(!senhaAtual)return;
-  const users=getAdminUsers();
-  const master=users.find(u=>isMasterUser(u));
-  if(!master||master.senha!==senhaAtual){alert('Senha atual incorreta.');return}
+  const verify=await api('/api/v1/admin/login',{method:'POST',body:{login:currentAdmin.login,senha:senhaAtual}});
+  if(!verify.ok){alert('Senha atual incorreta.');return}
   const novaSenha=prompt('Digite a NOVA senha:');
   if(!novaSenha||novaSenha.length<4){alert('A nova senha deve ter pelo menos 4 caracteres.');return}
   const confirma=prompt('Confirme a NOVA senha:');
   if(novaSenha!==confirma){alert('As senhas não conferem.');return}
-  master.senha=novaSenha;
-  saveAdminUsers(users);
+  const r=await api('/api/v1/admin/usuarios/'+currentAdmin.id+'/senha',{method:'POST',body:{senha:novaSenha}});
+  if(!r.ok){const j=await r.json().catch(()=>({}));alert(j.erro||'Não foi possível alterar a senha.');return}
   alert('Senha do Master alterada com sucesso!');
 }
-function deleteAdminUser(id){
+async function deleteAdminUser(id){
   if(!isLoggedAsMaster()){alert('Apenas o Administrador Master pode excluir usuários.');return}
-  const users=getAdminUsers();
-  const u=users.find(x=>x.id==id);
+  const u=getAdminUsers().find(x=>String(x.id)===String(id));
   if(!u)return;
   if(isMasterUser(u)){alert('O Administrador Master não pode ser excluído.');return}
   if(!confirm('Excluir o usuário "'+u.nome+'" ('+u.login+')?\n\nEssa ação não pode ser desfeita.'))return;
-  const filtered=users.filter(x=>x.id!==id);
-  saveAdminUsers(filtered);
-  renderAdminUsersTable();
+  const r=await api('/api/v1/admin/usuarios/'+u.id,{method:'DELETE'});
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok){alert(j.erro||'Não foi possível excluir o usuário.');return}
+  await renderAdminUsersTable();
   alert('Usuário excluído.');
 }
 
@@ -3096,4 +3219,6 @@ navigate = function(page) {
   if(page==='config_dev'&&currentUserType!=='admin'){alert('Acesso restrito. Faça login como administrador.');return}
   origNav(page);
   if(page==='acordo')setTimeout(simular,50);
+  if(page==='formulario_lgpd'&&lgpdView==='lista')setTimeout(hydrateLGPDList,10);
+  if(page==='perfil'&&currentUserType==='admin')setTimeout(()=>{loadAdminUsers().then(()=>{if(currentPage==='perfil'){const c=document.getElementById('page-container');if(c)c.innerHTML=pages.perfil();}});},10);
 };

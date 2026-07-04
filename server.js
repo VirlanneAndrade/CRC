@@ -11,6 +11,11 @@ const healthRouter = require('./src/routes/health');
 const dteIntegrationRouter = require('./src/routes/dteIntegration');
 const criticalFeaturesRouter = require('./src/routes/criticalFeatures');
 const tributosIntegrationRouter = require('./src/routes/tributosIntegration');
+const adminAuthRouter = require('./src/routes/adminAuth');
+const adminUsersRouter = require('./src/routes/adminUsers');
+const modulosRouter = require('./src/routes/modulos');
+const iaConfigRouter = require('./src/routes/iaConfig');
+const { disconnectPrisma } = require('./src/lib/prisma');
 
 const app = express();
 const PORT = env.PORT;
@@ -43,6 +48,10 @@ app.use(session({
 
 app.use(healthRouter);
 app.use(dteIntegrationRouter);
+app.use(adminAuthRouter);
+app.use(adminUsersRouter);
+app.use(modulosRouter);
+app.use(iaConfigRouter);
 app.use(criticalFeaturesRouter);
 app.use(tributosIntegrationRouter);
 
@@ -271,9 +280,20 @@ app.use((err, _req, res, _next) => {
 });
 
 if (require.main === module) {
-  app.listen(PORT, () => {
+  const server = app.listen(PORT, () => {
     logger.info(`CRC iniciado em http://localhost:${PORT}`);
   });
+
+  const shutdown = async (signal) => {
+    logger.info(`Recebido ${signal}, encerrando...`);
+    server.close(async () => {
+      await disconnectPrisma();
+      process.exit(0);
+    });
+  };
+
+  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
 module.exports = app;

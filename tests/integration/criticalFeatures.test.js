@@ -1,8 +1,15 @@
 const test = require('node:test');
+const { beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const http = require('node:http');
 
 const app = require('../../server');
+const { __setRepositories } = require('../../src/repositories');
+const { createInMemoryRepositories } = require('../helpers/inMemoryRepositories');
+
+beforeEach(() => {
+  __setRepositories(createInMemoryRepositories());
+});
 
 test('LGPD termo vigente deve ser retornado', async () => {
   const server = app.listen(0);
