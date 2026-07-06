@@ -196,6 +196,16 @@
       "situacao": "Normal",
       "emissao": "2026-05-18T19:55:06.593Z",
       "validade": "2026-08-16T19:55:06.593Z"
+    },
+    {
+      "codigo": "CERT-2026-62268-8B65ED",
+      "inscricao": "EMP-2024-00345",
+      "tipo": "Empresa",
+      "tipoCert": "Certidao",
+      "vinculo": "Responsavel",
+      "situacao": "Normal",
+      "emissao": "2026-07-03T23:30:28.722Z",
+      "validade": "2026-10-01T23:30:28.722Z"
     }
   ],
   "documents": [
@@ -1234,6 +1244,80 @@
         "responsavel": "",
         "logo": ""
       }
+    },
+    {
+      "codigo": "CERT-2026-62268-8B65ED",
+      "tipoDocumento": "certidao",
+      "emissao": "2026-07-03T23:30:28.722Z",
+      "validade": "2026-10-01T23:30:28.722Z",
+      "titulo": "Certidao Negativa",
+      "subtitulo": "Central de Relacionamento com o Contribuinte",
+      "fields": [
+        [
+          "inscricao",
+          "EMP-2024-00345"
+        ],
+        [
+          "tipo",
+          "Empresa"
+        ],
+        [
+          "vinculo",
+          "Responsavel"
+        ],
+        [
+          "situacao",
+          "Normal"
+        ]
+      ],
+      "filenamePrefix": "certidao",
+      "entidade": {
+        "nome": "Prefeitura Municipal de Teste",
+        "cnpj": "12.345.678/0001-99",
+        "endereco": "Rua Exemplo, 100",
+        "uf": "BA",
+        "email": "",
+        "telefone": "",
+        "responsavel": "",
+        "logo": ""
+      }
+    },
+    {
+      "codigo": "ALV-2026-82171",
+      "tipoDocumento": "alvara",
+      "emissao": "2026-07-03T23:30:28.825Z",
+      "validade": "2027-07-03T23:30:28.825Z",
+      "titulo": "Alvara de Funcionamento",
+      "subtitulo": "Documento oficial de licenciamento",
+      "fields": [
+        [
+          "inscricao",
+          "EMP-2024-00345"
+        ],
+        [
+          "cnpj",
+          "12.345.678/0001-90"
+        ],
+        [
+          "empresa",
+          "Empresa Alpha"
+        ],
+        [
+          "validadeInformada",
+          "31/12/2026"
+        ]
+      ],
+      "filenamePrefix": "alvara",
+      "entidade": {
+        "nome": "Prefeitura Municipal da Praia",
+        "cnpj": "01.222.333/0001-44",
+        "endereco": "Av. Central, 200",
+        "uf": "",
+        "email": "",
+        "telefone": "(71) 3000-0000",
+        "responsavel": "",
+        "logo": ""
+      }
     }
   ],
   "entidadeConfig": {
@@ -1247,7 +1331,7 @@
     "logo": ""
   },
   "tributosConfig": {
-    "apiBaseUrl": "http://127.0.0.1:50707",
+    "apiBaseUrl": "http://127.0.0.1:63129",
     "authType": "bearer",
     "authToken": "token-x",
     "healthPath": "/health",
@@ -1260,6 +1344,14 @@
   },
   "notificacoesConfig": {},
   "notificacoesTesteHistorico": [
+    {
+      "protocolo": "NTF-2026-03777",
+      "canal": "email",
+      "destino": "teste@exemplo.com",
+      "mensagem": "ping",
+      "enviadoEm": "2026-07-03T23:30:28.922Z",
+      "status": "simulado"
+    },
     {
       "protocolo": "NTF-2026-26805",
       "canal": "email",
