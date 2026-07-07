@@ -12,17 +12,18 @@ RUN Invoke-WebRequest -OutFile C:\node.zip -UseBasicParsing `
     Remove-Item C:\node.zip; `
     & C:\nodejs\node.exe -v
 
+ENV PATH=C:\\nodejs;C:\\Windows\\system32;C:\\Windows
+
 WORKDIR C:/app
 
 COPY package*.json ./
 
 # --ignore-scripts: evita postinstall do @prisma/client sem o CLI prisma instalado.
-# prisma e instalado em seguida; generate roda explicitamente abaixo.
 SHELL ["cmd", "/S", "/C"]
 RUN C:\nodejs\npm.cmd ci --omit=dev --ignore-scripts && C:\nodejs\npm.cmd install prisma --no-save --ignore-scripts
 
 COPY prisma ./prisma
-RUN C:\nodejs\npx.cmd prisma generate
+RUN C:\nodejs\node.exe C:\app\node_modules\prisma\build\index.js generate
 
 COPY . .
 
@@ -32,6 +33,7 @@ FROM mcr.microsoft.com/windows/servercore:1809
 COPY --from=builder C:/nodejs C:/nodejs
 COPY --from=builder C:/app C:/app
 
+ENV PATH=C:\\nodejs;C:\\Windows\\system32;C:\\Windows
 ENV NODE_ENV=production
 ENV PORT=4001
 
@@ -39,4 +41,4 @@ WORKDIR C:/app
 
 EXPOSE 4001
 
-CMD ["C:\\nodejs\\npm.cmd", "start"]
+CMD ["C:\\nodejs\\node.exe", "server.js"]
