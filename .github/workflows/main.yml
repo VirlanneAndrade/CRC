@@ -196,27 +196,29 @@ jobs:
 
       # ─────────────────────────────────────────────────────────────────────
       # RODAR MIGRATIONS PENDENTES (HOST)
-      # P3005: banco ja existia sem _prisma_migrations — baseline uma vez e redeploy.
+      # P3005: banco ja existia sem _prisma_migrations - baseline uma vez e redeploy.
       # ─────────────────────────────────────────────────────────────────────
       - name: Rodar migrations pendentes
         shell: powershell
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          $migrateOutput = npx prisma migrate deploy 2>&1 | Out-String
+          $output = & npx prisma migrate deploy 2>&1
+          $exitCode = $LASTEXITCODE
+          $migrateOutput = $output | Out-String
           Write-Host $migrateOutput
 
-          if ($LASTEXITCODE -ne 0 -and ($migrateOutput -match 'P3005')) {
-            Write-Host "P3005 detectado — baselining migrations ja refletidas no banco..."
-            Get-ChildItem prisma\migrations -Directory | Sort-Object Name | ForEach-Object {
-              Write-Host "  prisma migrate resolve --applied $($_.Name)"
-              npx prisma migrate resolve --applied $_.Name
-              if ($LASTEXITCODE -ne 0) { throw "baseline falhou em $($_.Name)" }
-            }
-            npx prisma migrate deploy
+          if ($exitCode -ne 0 -and $migrateOutput.Contains('P3005')) {
+            Write-Host 'P3005 detectado - baselining migrations ja refletidas no banco...'
+            node scripts/prisma-baseline.js
+            if ($LASTEXITCODE -ne 0) { throw 'baseline falhou' }
+            & npx prisma migrate deploy
+            $exitCode = $LASTEXITCODE
           }
 
-          if ($LASTEXITCODE -ne 0) { throw "migrate deploy falhou com exit code $LASTEXITCODE" }
+          if ($exitCode -ne 0) {
+            throw ('migrate deploy falhou com exit code ' + $exitCode)
+          }
 
       # ─────────────────────────────────────────────────────────────────────
       # HEALTHCHECK BACKEND
