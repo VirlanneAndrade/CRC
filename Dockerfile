@@ -16,9 +16,10 @@ WORKDIR C:/app
 
 COPY package*.json ./
 
-# cmd + caminho absoluto: ENV PATH nem sempre e aplicado nos RUN com PowerShell SHELL
+# --ignore-scripts: evita postinstall do @prisma/client sem o CLI prisma instalado.
+# prisma e instalado em seguida; generate roda explicitamente abaixo.
 SHELL ["cmd", "/S", "/C"]
-RUN C:\nodejs\npm.cmd ci --omit=dev && C:\nodejs\npm.cmd install prisma --no-save
+RUN C:\nodejs\npm.cmd ci --omit=dev --ignore-scripts && C:\nodejs\npm.cmd install prisma --no-save --ignore-scripts
 
 COPY prisma ./prisma
 RUN C:\nodejs\npx.cmd prisma generate
