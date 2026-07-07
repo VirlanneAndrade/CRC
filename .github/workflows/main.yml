@@ -196,29 +196,14 @@ jobs:
 
       # ─────────────────────────────────────────────────────────────────────
       # RODAR MIGRATIONS PENDENTES (HOST)
-      # P3005: banco ja existia sem _prisma_migrations - baseline uma vez e redeploy.
       # ─────────────────────────────────────────────────────────────────────
       - name: Rodar migrations pendentes
         shell: powershell
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
-          $output = & npx prisma migrate deploy 2>&1
-          $exitCode = $LASTEXITCODE
-          $migrateOutput = $output | Out-String
-          Write-Host $migrateOutput
-
-          if ($exitCode -ne 0 -and $migrateOutput.Contains('P3005')) {
-            Write-Host 'P3005 detectado - baselining migrations ja refletidas no banco...'
-            node scripts/prisma-baseline.js
-            if ($LASTEXITCODE -ne 0) { throw 'baseline falhou' }
-            & npx prisma migrate deploy
-            $exitCode = $LASTEXITCODE
-          }
-
-          if ($exitCode -ne 0) {
-            throw ('migrate deploy falhou com exit code ' + $exitCode)
-          }
+          npx prisma migrate deploy
+          if ($LASTEXITCODE -ne 0) { throw "migrate deploy falhou com exit code $LASTEXITCODE" }
 
       # ─────────────────────────────────────────────────────────────────────
       # HEALTHCHECK BACKEND

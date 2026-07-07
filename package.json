@@ -15,8 +15,7 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "db:status": "prisma migrate status",
-    "db:baseline": "node scripts/prisma-baseline.js"
+    "db:status": "prisma migrate status"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
