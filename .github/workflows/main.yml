@@ -27,7 +27,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: self-hosted
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     env:
       APP_NAME: crc-portal
@@ -46,6 +46,8 @@ jobs:
       INIT_WAIT_SECONDS: '15'
       HEALTH_RETRIES: '30'
       HEALTH_INTERVAL_SECONDS: '5'
+      # Runner Windows Server 2019 — imagens Linux (Alpine) nao rodam aqui.
+      DOCKER_PLATFORM: windows/amd64
 
     steps:
       # ─────────────────────────────────────────────────────────────────────
@@ -90,12 +92,13 @@ jobs:
 
       # ─────────────────────────────────────────────────────────────────────
       # BUILD DA IMAGEM DOCKER
-      # Sem --build-arg: o Dockerfile atual não declara ARG.
+      # --platform windows/amd64 + base LTSC 2019: compativel com Windows Server 2019.
       # ─────────────────────────────────────────────────────────────────────
       - name: Build da imagem Docker
         shell: powershell
         run: |
           docker build `
+            --platform $env:DOCKER_PLATFORM `
             -t "$($env:IMAGE_NAME):latest" `
             -t "$($env:IMAGE_NAME):$($env:IMAGE_TAG)" `
             .
@@ -133,6 +136,7 @@ jobs:
           docker rm -f $tempName 2>$null
 
           docker run -d `
+            --platform $env:DOCKER_PLATFORM `
             --name $tempName `
             -p "$($env:PORT_FRONT_TEMP):$($env:PORT_FRONT_INTERNAL)" `
             -p "$($env:PORT_BACK_TEMP):$($env:PORT_BACK_INTERNAL)" `
@@ -274,6 +278,7 @@ jobs:
           docker rm -f $env:CONTAINER_NAME 2>$null
 
           docker run -d `
+            --platform $env:DOCKER_PLATFORM `
             --name $env:CONTAINER_NAME `
             --restart always `
             -p "$($env:PORT_FRONT_EXTERNAL):$($env:PORT_FRONT_INTERNAL)" `
@@ -428,6 +433,7 @@ jobs:
           Write-Host "Restaurando imagem: $env:CURRENT_IMAGE"
 
           docker run -d `
+            --platform $env:DOCKER_PLATFORM `
             --name $env:CONTAINER_NAME `
             -p "$($env:PORT_FRONT_EXTERNAL):$($env:PORT_FRONT_INTERNAL)" `
             --restart always `
