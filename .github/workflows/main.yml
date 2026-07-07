@@ -27,7 +27,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: self-hosted
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     env:
       APP_NAME: crc-portal
@@ -46,7 +46,7 @@ jobs:
       INIT_WAIT_SECONDS: '15'
       HEALTH_RETRIES: '30'
       HEALTH_INTERVAL_SECONDS: '5'
-      # Runner Windows Server 2019 — imagens Linux (Alpine) nao rodam aqui.
+      # Runner Windows Server 2019 (1809) — base mcr.microsoft.com/windows/servercore:1809
       DOCKER_PLATFORM: windows/amd64
 
     steps:
@@ -92,7 +92,7 @@ jobs:
 
       # ─────────────────────────────────────────────────────────────────────
       # BUILD DA IMAGEM DOCKER
-      # --platform windows/amd64 + base LTSC 2019: compativel com Windows Server 2019.
+      # Multi-stage Windows Server Core 1809 (mesmo padrao dos demais projetos).
       # ─────────────────────────────────────────────────────────────────────
       - name: Build da imagem Docker
         shell: powershell
