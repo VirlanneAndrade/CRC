@@ -1,0 +1,455 @@
+name: Deploy CRC
+
+on:
+  push:
+    branches: ["master"]
+    paths:
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'server.js'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'src/**'
+      - 'public/**'
+      - 'views/**'
+      - 'prisma/**'
+      - '.github/workflows/main.yml'
+  workflow_dispatch: {}
+
+# Se existir outro workflow Docker neste repo (ex.: main.yml com PM2 ou um
+# "portal" separado), cada arquivo deve filtrar paths distintos para evitar
+# rebuild/deploy cruzado indevido quando apenas um serviço mudar.
+
+concurrency:
+  group: deploy-crc-portal-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    timeout-minutes: 45
+
+    env:
+      APP_NAME: crc-portal
+      IMAGE_NAME: crc-portal
+      CONTAINER_NAME: crc-portal-app
+      PORT_FRONT_INTERNAL: '4001'
+      PORT_BACK_INTERNAL: '4001'
+      PORT_FRONT_EXTERNAL: '4001'
+      PORT_BACK_EXTERNAL: '4001'
+      PORT_FRONT_TEMP: '14001'
+      PORT_BACK_TEMP: '14002'
+      HEALTH_BACKEND_PATH: '/health'
+      HEALTH_FRONTEND_PATH: '/'
+      MIGRATE_STATUS_CMD: 'npx prisma migrate status'
+      MIGRATE_DEPLOY_CMD: 'npx prisma migrate deploy'
+      INIT_WAIT_SECONDS: '15'
+      HEALTH_RETRIES: '30'
+      HEALTH_INTERVAL_SECONDS: '5'
+
+    steps:
+      # ─────────────────────────────────────────────────────────────────────
+      # CHECKOUT
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ─────────────────────────────────────────────────────────────────────
+      # VALIDAR DOCKER
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Validar Docker
+        shell: powershell
+        run: |
+          docker version
+          docker info
+
+      # ─────────────────────────────────────────────────────────────────────
+      # IDENTIFICAR IMAGEM ATUAL
+      # Captura a imagem do container de produção para rollback automático.
+      # Se não houver deploy anterior, CURRENT_IMAGE fica vazio e o rollback
+      # preservará o que estiver rodando em vez de derrubar sem restauração.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Identificar imagem atual
+        shell: powershell
+        run: |
+          $existing = docker ps -a --filter "name=^$($env:CONTAINER_NAME)$" --format "{{.Names}}"
+          if ($existing -eq $env:CONTAINER_NAME) {
+            $current = docker inspect --format="{{.Config.Image}}" $env:CONTAINER_NAME
+            "CURRENT_IMAGE=$current" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          } else {
+            "CURRENT_IMAGE=" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          }
+
+      # ─────────────────────────────────────────────────────────────────────
+      # GERAR TAG ÚNICA
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Gerar tag única
+        shell: powershell
+        run: |
+          "IMAGE_TAG=build-$($env:GITHUB_RUN_NUMBER)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      # ─────────────────────────────────────────────────────────────────────
+      # BUILD DA IMAGEM DOCKER
+      # Sem --build-arg: o Dockerfile atual não declara ARG.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Build da imagem Docker
+        shell: powershell
+        run: |
+          docker build `
+            -t "$($env:IMAGE_NAME):latest" `
+            -t "$($env:IMAGE_NAME):$($env:IMAGE_TAG)" `
+            .
+          if ($LASTEXITCODE -ne 0) { throw "docker build falhou com exit code $LASTEXITCODE" }
+
+      # ─────────────────────────────────────────────────────────────────────
+      # SUBIR CONTAINER NOVO TEMPORÁRIO
+      # Portas auxiliares (14001/14002) evitam conflito com produção (4001).
+      # Secrets via pass-through (-e NOME sem =valor): o PowerShell não
+      # reinterpreta JSON com aspas internas e o valor não aparece nos args
+      # do processo docker visíveis em log.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Subir container novo temporário
+        shell: powershell
+        env:
+          NODE_ENV: production
+          PORT: ${{ env.PORT_BACK_INTERNAL }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          CORS_ORIGIN: ${{ secrets.CORS_ORIGIN }}
+          RATE_LIMIT_PUBLIC: ${{ secrets.RATE_LIMIT_PUBLIC }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          EQFIS_API_BASE_URL: ${{ secrets.EQFIS_API_BASE_URL }}
+          EQFIS_API_KEY: ${{ secrets.EQFIS_API_KEY }}
+          EQFIS_TIMEOUT_MS: ${{ secrets.EQFIS_TIMEOUT_MS }}
+          TRIBUTOS_API_BASE_URL: ${{ secrets.TRIBUTOS_API_BASE_URL }}
+          TRIBUTOS_API_KEY: ${{ secrets.TRIBUTOS_API_KEY }}
+          TRIBUTOS_AUTH_TYPE: ${{ secrets.TRIBUTOS_AUTH_TYPE }}
+          TRIBUTOS_TIMEOUT_MS: ${{ secrets.TRIBUTOS_TIMEOUT_MS }}
+        run: |
+          $tempName = "$($env:CONTAINER_NAME)-temp"
+          "TEMP_CONTAINER=$tempName" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+          docker rm -f $tempName 2>$null
+
+          docker run -d `
+            --name $tempName `
+            -p "$($env:PORT_FRONT_TEMP):$($env:PORT_FRONT_INTERNAL)" `
+            -p "$($env:PORT_BACK_TEMP):$($env:PORT_BACK_INTERNAL)" `
+            -e NODE_ENV `
+            -e PORT `
+            -e SESSION_SECRET `
+            -e CORS_ORIGIN `
+            -e RATE_LIMIT_PUBLIC `
+            -e LOG_LEVEL `
+            -e DATABASE_URL `
+            -e REDIS_URL `
+            -e EQFIS_API_BASE_URL `
+            -e EQFIS_API_KEY `
+            -e EQFIS_TIMEOUT_MS `
+            -e TRIBUTOS_API_BASE_URL `
+            -e TRIBUTOS_API_KEY `
+            -e TRIBUTOS_AUTH_TYPE `
+            -e TRIBUTOS_TIMEOUT_MS `
+            "$($env:IMAGE_NAME):$($env:IMAGE_TAG)"
+
+          if ($LASTEXITCODE -ne 0) { throw "docker run (temp) falhou com exit code $LASTEXITCODE" }
+
+      # ─────────────────────────────────────────────────────────────────────
+      # SETUP NODE PARA MIGRATIONS NO HOST
+      # Migrations rodam no runner; DATABASE_URL usa IP LAN (mesmo secret do container).
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Setup Node para migrations
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Instalar dependências para migrations
+        shell: powershell
+        run: npm ci
+
+      # ─────────────────────────────────────────────────────────────────────
+      # AGUARDAR INICIALIZAÇÃO
+      # Tempo fixo de boot antes de migrations/health — sem polling aqui.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Aguardar inicialização
+        shell: powershell
+        run: Start-Sleep -Seconds $env:INIT_WAIT_SECONDS
+
+      # ─────────────────────────────────────────────────────────────────────
+      # VERIFICAR STATUS DAS MIGRATIONS (HOST)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Verificar status das migrations
+        shell: powershell
+        continue-on-error: true
+        env:
+           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx prisma migrate status
+
+      # ─────────────────────────────────────────────────────────────────────
+      # RODAR MIGRATIONS PENDENTES (HOST)
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Rodar migrations pendentes
+        shell: powershell
+        env:
+            DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+            npx prisma migrate deploy
+            if ($LASTEXITCODE -ne 0) { throw "migrate deploy falhou com exit code $LASTEXITCODE" }
+
+      # ─────────────────────────────────────────────────────────────────────
+      # HEALTHCHECK BACKEND
+      # Exige 200 estrito na rota que deve validar acesso real ao banco.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Healthcheck backend
+        shell: powershell
+        run: |
+          $url = "http://localhost:$($env:PORT_BACK_TEMP)$($env:HEALTH_BACKEND_PATH)"
+          $max = [int]$env:HEALTH_RETRIES
+          $interval = [int]$env:HEALTH_INTERVAL_SECONDS
+          $ok = $false
+
+          for ($i = 1; $i -le $max; $i++) {
+            try {
+              $resp = Invoke-WebRequest -Uri $url -UseBasicParsing
+              if ($resp.StatusCode -eq 200) { $ok = $true; break }
+            } catch {}
+            Start-Sleep -Seconds $interval
+          }
+
+          if (-not $ok) {
+            docker logs $env:TEMP_CONTAINER
+            throw "Healthcheck backend falhou após $max tentativas em $url"
+          }
+
+      # ─────────────────────────────────────────────────────────────────────
+      # HEALTHCHECK FRONTEND
+      # Valida rota pública (home) — não usa rota protegida por auth.
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Healthcheck frontend
+        shell: powershell
+        run: |
+          $url = "http://localhost:$($env:PORT_FRONT_TEMP)$($env:HEALTH_FRONTEND_PATH)"
+          $max = [int]$env:HEALTH_RETRIES
+          $interval = [int]$env:HEALTH_INTERVAL_SECONDS
+          $ok = $false
+
+          for ($i = 1; $i -le $max; $i++) {
+            try {
+              $resp = Invoke-WebRequest -Uri $url -UseBasicParsing
+              if ($resp.StatusCode -eq 200) { $ok = $true; break }
+            } catch {}
+            Start-Sleep -Seconds $interval
+          }
+
+          if (-not $ok) {
+            docker logs $env:TEMP_CONTAINER
+            throw "Healthcheck frontend falhou após $max tentativas em $url"
+          }
+
+      # ─────────────────────────────────────────────────────────────────────
+      # PROMOVER NOVO CONTAINER
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Promover novo container
+        shell: powershell
+        env:
+          NODE_ENV: production
+          PORT: ${{ env.PORT_BACK_INTERNAL }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          CORS_ORIGIN: ${{ secrets.CORS_ORIGIN }}
+          RATE_LIMIT_PUBLIC: ${{ secrets.RATE_LIMIT_PUBLIC }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          EQFIS_API_BASE_URL: ${{ secrets.EQFIS_API_BASE_URL }}
+          EQFIS_API_KEY: ${{ secrets.EQFIS_API_KEY }}
+          EQFIS_TIMEOUT_MS: ${{ secrets.EQFIS_TIMEOUT_MS }}
+          TRIBUTOS_API_BASE_URL: ${{ secrets.TRIBUTOS_API_BASE_URL }}
+          TRIBUTOS_API_KEY: ${{ secrets.TRIBUTOS_API_KEY }}
+          TRIBUTOS_AUTH_TYPE: ${{ secrets.TRIBUTOS_AUTH_TYPE }}
+          TRIBUTOS_TIMEOUT_MS: ${{ secrets.TRIBUTOS_TIMEOUT_MS }}
+        run: |
+          docker stop $env:TEMP_CONTAINER
+          docker rm -f $env:CONTAINER_NAME 2>$null
+
+          docker run -d `
+            --name $env:CONTAINER_NAME `
+            --restart always `
+            -p "$($env:PORT_FRONT_EXTERNAL):$($env:PORT_FRONT_INTERNAL)" `
+            -e NODE_ENV `
+            -e PORT `
+            -e SESSION_SECRET `
+            -e CORS_ORIGIN `
+            -e RATE_LIMIT_PUBLIC `
+            -e LOG_LEVEL `
+            -e DATABASE_URL `
+            -e REDIS_URL `
+            -e EQFIS_API_BASE_URL `
+            -e EQFIS_API_KEY `
+            -e EQFIS_TIMEOUT_MS `
+            -e TRIBUTOS_API_BASE_URL `
+            -e TRIBUTOS_API_KEY `
+            -e TRIBUTOS_AUTH_TYPE `
+            -e TRIBUTOS_TIMEOUT_MS `
+            "$($env:IMAGE_NAME):$($env:IMAGE_TAG)"
+
+          if ($LASTEXITCODE -ne 0) { throw "docker run (produção) falhou com exit code $LASTEXITCODE" }
+
+      # ─────────────────────────────────────────────────────────────────────
+      # VALIDAÇÃO FINAL
+      # ─────────────────────────────────────────────────────────────────────
+      - name: Validação final
+        shell: powershell
+        run: |
+          $url = "http://localhost:$($env:PORT_BACK_EXTERNAL)$($env:HEALTH_BACKEND_PATH)"
+          try {
+            $resp = Invoke-WebRequest -Uri $url -UseBasicParsing
+            if ($resp.StatusCode -ne 200) { throw "Status $($resp.StatusCode) em $url" }
+          } catch {
+            throw "Validação final falhou em ${url}: $_"
+          }
+
+      # ─────────────────────────────────────────────
+      # LIMPEZA
+      # ─────────────────────────────────────────────
+      - name: Limpeza
+        if: success()
+        shell: powershell
+        run: |
+          Write-Host "Iniciando limpeza inteligente..."
+
+          # ─────────────────────────────
+          # Containers mortos
+          # ─────────────────────────────
+          docker container prune -f
+
+          # ─────────────────────────────
+          # Imagens dangling
+          # ─────────────────────────────
+          docker image prune -f
+
+          # ─────────────────────────────
+          # Limpar temp container
+          # ─────────────────────────────
+          $tempExists = docker ps -a --format "{{.Names}}" | Select-String "^$env:TEMP_CONTAINER$"
+
+          if ($tempExists) {
+            docker rm -f $env:TEMP_CONTAINER
+          }
+
+          # ─────────────────────────────
+          # Manter apenas:
+          # latest + 1 build recente
+          # ─────────────────────────────
+          Write-Host "Limpando builds antigas..."
+
+          $builds = docker images $env:IMAGE_NAME `
+            --format "{{.Repository}}:{{.Tag}}" |
+            Select-String "build-"
+
+          Write-Host "Builds encontradas:"
+          $builds
+
+          if ($builds.Count -gt 1) {
+
+            $toRemove = $builds | Select-Object -Skip 1
+
+            foreach ($build in $toRemove) {
+
+              $image = $build.ToString().Trim()
+
+              Write-Host "Removendo build antiga: $image"
+
+              docker rmi -f $image
+            }
+          }
+
+          # ─────────────────────────────
+          # Exibir uso atual
+          # ─────────────────────────────
+          Write-Host "Uso atual Docker:"
+          docker system df
+
+          Write-Host "Limpeza concluida"
+
+      # ─────────────────────────────────────────────
+      # ROLLBACK AUTOMATICO
+      # ─────────────────────────────────────────────
+      - name: Rollback automatico
+        if: failure()
+        shell: powershell
+        # Secrets via `env:` + pass-through `-e NOME` (nunca inline). ESSENCIAL aqui:
+        # com inline, o rollback falharia no `docker run` (bug de aspas no PowerShell)
+        # DEPOIS de ja ter removido o container principal — deixando a aplicacao fora do ar.
+        env:
+          NODE_ENV: production
+          PORT: ${{ env.PORT_BACK_INTERNAL }}
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+          CORS_ORIGIN: ${{ secrets.CORS_ORIGIN }}
+          RATE_LIMIT_PUBLIC: ${{ secrets.RATE_LIMIT_PUBLIC }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          REDIS_URL: ${{ secrets.REDIS_URL }}
+          EQFIS_API_BASE_URL: ${{ secrets.EQFIS_API_BASE_URL }}
+          EQFIS_API_KEY: ${{ secrets.EQFIS_API_KEY }}
+          EQFIS_TIMEOUT_MS: ${{ secrets.EQFIS_TIMEOUT_MS }}
+          TRIBUTOS_API_BASE_URL: ${{ secrets.TRIBUTOS_API_BASE_URL }}
+          TRIBUTOS_API_KEY: ${{ secrets.TRIBUTOS_API_KEY }}
+          TRIBUTOS_AUTH_TYPE: ${{ secrets.TRIBUTOS_AUTH_TYPE }}
+          TRIBUTOS_TIMEOUT_MS: ${{ secrets.TRIBUTOS_TIMEOUT_MS }}
+        run: |
+
+          Write-Host "FALHA DETECTADA - iniciando rollback"
+
+          $tempExists = docker ps -a --format "{{.Names}}" |
+            Select-String "^$env:TEMP_CONTAINER$"
+
+          if ($tempExists) {
+            docker rm -f $env:TEMP_CONTAINER
+          }
+
+          if ([string]::IsNullOrWhiteSpace("$env:CURRENT_IMAGE")) {
+            # Sem imagem anterior conhecida: NAO remover o container principal —
+            # se ele ainda estiver de pe, mata-lo aqui derrubaria a aplicacao sem
+            # ter como restaurar. Melhor abortar preservando o que estiver rodando.
+            throw "Nenhuma imagem anterior encontrada para rollback (container atual preservado)"
+          }
+
+          # So agora removemos o principal, imediatamente antes de recria-lo com a
+          # imagem anterior — minimiza a janela de indisponibilidade.
+          $mainExists = docker ps -a --format "{{.Names}}" |
+            Select-String "^$env:CONTAINER_NAME$"
+
+          if ($mainExists) {
+            docker rm -f $env:CONTAINER_NAME
+          }
+
+          Write-Host "Restaurando imagem: $env:CURRENT_IMAGE"
+
+          docker run -d `
+            --name $env:CONTAINER_NAME `
+            -p "$($env:PORT_FRONT_EXTERNAL):$($env:PORT_FRONT_INTERNAL)" `
+            --restart always `
+            -e NODE_ENV `
+            -e PORT `
+            -e SESSION_SECRET `
+            -e CORS_ORIGIN `
+            -e RATE_LIMIT_PUBLIC `
+            -e LOG_LEVEL `
+            -e DATABASE_URL `
+            -e REDIS_URL `
+            -e EQFIS_API_BASE_URL `
+            -e EQFIS_API_KEY `
+            -e EQFIS_TIMEOUT_MS `
+            -e TRIBUTOS_API_BASE_URL `
+            -e TRIBUTOS_API_KEY `
+            -e TRIBUTOS_AUTH_TYPE `
+            -e TRIBUTOS_TIMEOUT_MS `
+            "$env:CURRENT_IMAGE"
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Rollback falhou"
+          }
+
+          Write-Host "Rollback concluido"
