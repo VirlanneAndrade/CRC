@@ -133,7 +133,10 @@ jobs:
           $tempName = "$($env:CONTAINER_NAME)-temp"
           "TEMP_CONTAINER=$tempName" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-          docker rm -f $tempName 2>$null
+          $tempExists = docker ps -a --format "{{.Names}}" | Select-String "^$tempName$"
+          if ($tempExists) {
+            docker rm -f $tempName
+          }
 
           docker run -d `
             --platform $env:DOCKER_PLATFORM `
@@ -274,8 +277,16 @@ jobs:
           TRIBUTOS_AUTH_TYPE: ${{ secrets.TRIBUTOS_AUTH_TYPE }}
           TRIBUTOS_TIMEOUT_MS: ${{ secrets.TRIBUTOS_TIMEOUT_MS }}
         run: |
-          docker stop $env:TEMP_CONTAINER
-          docker rm -f $env:CONTAINER_NAME 2>$null
+          $tempExists = docker ps -a --format "{{.Names}}" | Select-String "^$($env:TEMP_CONTAINER)$"
+          if ($tempExists) {
+            docker stop $env:TEMP_CONTAINER 2>&1 | Out-Null
+            docker rm -f $env:TEMP_CONTAINER 2>&1 | Out-Null
+          }
+
+          $mainExists = docker ps -a --format "{{.Names}}" | Select-String "^$($env:CONTAINER_NAME)$"
+          if ($mainExists) {
+            docker rm -f $env:CONTAINER_NAME
+          }
 
           docker run -d `
             --platform $env:DOCKER_PLATFORM `
