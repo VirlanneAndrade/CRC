@@ -305,6 +305,101 @@ function setContribuinteLogado(c){
   contribuinteLogado=c;
   localStorage.setItem('crc_contrib_logado',JSON.stringify(c));
 }
+function formatDocumentoDisplay(digits,tipoPessoa){
+  const d=String(digits||'').replace(/\D/g,'');
+  if(d.length===11){
+    return d.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/,'$1.$2.$3-$4');
+  }
+  if(d.length===14){
+    return d.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/,'$1.$2.$3/$4-$5');
+  }
+  return digits||'';
+}
+function getDocumentoFromSelecao(c){
+  return String((c&&c.cpfCnpj)||(c&&c.cpf)||(c&&c.cnpj)||'').replace(/\D/g,'');
+}
+function getCpfCnpjAtivo(){
+  const proc=getProcuradorAtivo&&getProcuradorAtivo();
+  if(proc&&proc.outorgante_cpf)return String(proc.outorgante_cpf).replace(/\D/g,'');
+  const c=getContribuinteLogado();
+  return getDocumentoFromSelecao(c);
+}
+/* ── Integração JFU: contribuinte e resumo fiscal ── */
+/** Proxy browser → GET /api/tributos/contribuinte */
+async function fetchContribuinteApi(cpfCnpj){
+  const doc=String(cpfCnpj||'').replace(/\D/g,'');
+  const r=await fetch('/api/tributos/contribuinte?cpfCnpj='+encodeURIComponent(doc));
+  const body=await r.json().catch(()=>({}));
+  return{ok:r.ok,status:r.status,body};
+}
+/** Proxy browser → GET /api/tributos/resumo */
+async function fetchResumoApi(cpfCnpj){
+  const doc=String(cpfCnpj||'').replace(/\D/g,'');
+  const r=await fetch('/api/tributos/resumo?cpfCnpj='+encodeURIComponent(doc));
+  const body=await r.json().catch(()=>({}));
+  return{ok:r.ok,status:r.status,body};
+}
+/** Converte resposta CRC para objeto do localStorage; endereco string da JFU. */
+function mapContribuinteToLocal(api,meta={}){
+  const cpfCnpj=String(api.cpfCnpj||'').replace(/\D/g,'')||getDocumentoFromSelecao(meta);
+  const tipoPessoa=api.tipoPessoa||(cpfCnpj.length===14?'PJ':'PF');
+  let endereco='';
+  let bairro='';
+  let cidade='';
+  let uf='';
+  let cep='';
+  if(typeof api.endereco==='string'){
+    endereco=api.endereco.trim();
+  }else if(api.endereco&&typeof api.endereco==='object'){
+    const end=api.endereco;
+    endereco=[end.logradouro,end.numero].filter(Boolean).join(', ')||end.logradouro||'';
+    bairro=end.bairro||'';
+    cidade=end.cidade||'';
+    uf=end.uf||'';
+    cep=end.cep||'';
+  }
+  if(!endereco)endereco=meta.endereco||'';
+  if(!bairro)bairro=meta.bairro||'';
+  if(!cidade)cidade=meta.cidade||'';
+  if(!uf)uf=meta.uf||'';
+  if(!cep)cep=meta.cep||'';
+  const docFmt=formatDocumentoDisplay(cpfCnpj,tipoPessoa);
+  return{
+    id:api.id||meta.id||cpfCnpj,
+    nome:api.nomeRazaoSocial||meta.nome||'Contribuinte',
+    nomeFantasia:api.nomeFantasia||null,
+    tipoPessoa,
+    cpfCnpj,
+    cpf:tipoPessoa==='PF'?docFmt:(meta.cpf||''),
+    cnpj:tipoPessoa==='PJ'?docFmt:null,
+    email:api.email||meta.email||'',
+    telefone:api.telefone||meta.telefone||'',
+    endereco,
+    bairro,
+    cidade,
+    uf,
+    cep,
+    govbr:api.nivelGovBr||meta.govbr||'Bronze',
+    status:api.status||null,
+  };
+}
+/** Usado no login e na troca de contribuinte; bloqueia se a API falhar. */
+async function loadContribuinteFromApi(selecao){
+  const doc=getDocumentoFromSelecao(selecao);
+  if(!doc||!(doc.length===11||doc.length===14)){
+    return{ok:false,erro:'CPF/CNPJ inválido para consulta na API de tributos.'};
+  }
+  const resp=await fetchContribuinteApi(doc);
+  if(!resp.ok){
+    return{ok:false,erro:resp.body.erro||('Não foi possível carregar o cadastro (HTTP '+resp.status+').')};
+  }
+  return{ok:true,contribuinte:mapContribuinteToLocal(resp.body,selecao||{})};
+}
+function formatBRL(value){
+  const n=Number(value);
+  if(!Number.isFinite(n))return 'R$ 0,00';
+  return 'R$ '+n.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
 function toggleContribPicker(){
   if(currentUserType!=='contribuinte')return;
   const el=document.getElementById('contrib-picker');
@@ -330,10 +425,12 @@ function renderContribPicker(){
     </div>`;
   }).join('');
 }
-function switchContribuinte(id){
+async function switchContribuinte(id){
   const c=getContribuintes().find(x=>x.id===id);
   if(!c)return;
-  setContribuinteLogado(c);
+  const loaded=await loadContribuinteFromApi(c);
+  if(!loaded.ok){alert(loaded.erro||'Não foi possível trocar o contribuinte.');return}
+  setContribuinteLogado(loaded.contribuinte);
   applyContribuinteUI();
   renderContribPicker();
   document.getElementById('contrib-picker').style.display='none';
@@ -341,10 +438,11 @@ function switchContribuinte(id){
 }
 function applyContribuinteUI(){
   const c=getContribuinteLogado();if(!c)return;
-  const initials=c.nome.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase();
-  const uname=document.getElementById('sidebar-username');if(uname)uname.textContent=c.nome.split(' ').slice(0,2).join(' ');
-  const ulevel=document.querySelector('.user-level');if(ulevel)ulevel.textContent='Gov.BR '+c.govbr;
-  const topName=document.querySelector('.topbar-username');if(topName)topName.textContent=c.nome.split(' ').slice(0,2).join(' ');
+  const displayNome=(c.tipoPessoa==='PJ'&&c.nomeFantasia)?c.nomeFantasia:c.nome;
+  const initials=displayNome.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase();
+  const uname=document.getElementById('sidebar-username');if(uname)uname.textContent=displayNome.split(' ').slice(0,2).join(' ');
+  const ulevel=document.querySelector('.user-level');if(ulevel)ulevel.textContent='Gov.BR '+(c.govbr||'Bronze');
+  const topName=document.querySelector('.topbar-username');if(topName)topName.textContent=displayNome.split(' ').slice(0,2).join(' ');
   const sAvatar=document.getElementById('sidebar-avatar');if(sAvatar)sAvatar.textContent=initials;
   const tAvatar=document.getElementById('topbar-avatar');if(tAvatar)tAvatar.textContent=initials;
 }
@@ -358,8 +456,14 @@ function enviarRecuperacao(){
   div.innerHTML='<div style="text-align:center;padding:16px"><div style="width:48px;height:48px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 10px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><h3 style="font-size:.95rem;margin-bottom:4px">Instruções enviadas!</h3><p style="font-size:.78rem;color:var(--text-muted)">Verifique seu e-mail cadastrado para o CPF '+cpf.value+'.</p><a href="#" onclick="event.preventDefault();document.getElementById(\'login-recuperar\').style.display=\'none\'" style="display:block;margin-top:10px;font-size:.78rem">Voltar ao login</a></div>';
 }
 async function doLogin(){
-  const c=getContribuinteLogado();
-  if(!c)setContribuinteLogado(getContribuintes()[0]);
+  let selecao=getContribuinteLogado();
+  if(!selecao)selecao=getContribuintes()[0];
+  const loaded=await loadContribuinteFromApi(selecao);
+  if(!loaded.ok){
+    alert(loaded.erro||'Não foi possível entrar. Verifique a integração com tributos.');
+    return;
+  }
+  setContribuinteLogado(loaded.contribuinte);
   currentUserType='contribuinte';
   document.getElementById('login-screen').classList.remove('active');
   document.getElementById('app-screen').classList.add('active');
@@ -658,6 +762,7 @@ function navigate(page){
   injectBackButton(page);
   if(page==='perfil'){const p=localStorage.getItem('arrecada_photo');if(p){const pp=document.getElementById('profile-photo-main');if(pp)pp.innerHTML=`<img src="${p}">`}}
   if(page==='notificacoes'){setTimeout(hydrateNotificacoesPage,20);}
+  if(page==='dashboard'){setTimeout(hydrateDashboardResumo,20);}
 }
 function goBack(){
   if(navHistory.length>0){navigate(navHistory.pop());navHistory.pop();}
@@ -760,11 +865,12 @@ const I={
 /* ── DASHBOARD ── */
 pages.dashboard=()=>`<div class="module-page">
   <div class="page-header"><h1>Olá, ${currentUserType==='admin'?((currentAdmin&&currentAdmin.nome)||'Admin'):((getContribuinteLogado()||{}).nome||'Contribuinte').split(' ')[0]}!</h1><p>Bem-vindo ao seu painel — Município de Lauro de Freitas</p></div>
+  <div id="dash-resumo-erro" class="info-banner warning" style="display:none;margin-bottom:14px"></div>
   <div class="summary-cards">
-    <div class="summary-card" onclick="navigate('extrato_divida')"><div class="summary-icon danger">${I.shield}</div><div class="summary-info"><span class="summary-label">Dívida Ativa</span><span class="summary-value" style="color:var(--danger)">R$ 4.872,35</span><span class="summary-sub">3 inscrições</span></div></div>
-    <div class="summary-card" onclick="navigate('tributos')"><div class="summary-icon orange">${I.money}</div><div class="summary-info"><span class="summary-label">A Vencer</span><span class="summary-value" style="color:var(--orange)">R$ 1.590,00</span><span class="summary-sub">2 tributos</span></div></div>
-    <div class="summary-card" onclick="navigate('acordo')"><div class="summary-icon green">${I.check}</div><div class="summary-info"><span class="summary-label">Acordos</span><span class="summary-value" style="color:var(--accent)">2</span><span class="summary-sub">Em dia</span></div></div>
-    <div class="summary-card" onclick="navigate('situacao_fiscal')"><div class="summary-icon accent">${I.cert}</div><div class="summary-info"><span class="summary-label">Inscrições</span><span class="summary-value">5</span><span class="summary-sub">3 Imóveis · 2 Empresas</span></div></div>
+    <div class="summary-card" onclick="navigate('extrato_divida')"><div class="summary-icon danger">${I.shield}</div><div class="summary-info"><span class="summary-label">Dívida Ativa</span><span class="summary-value" id="dash-card-divida-valor" style="color:var(--danger)">Carregando...</span><span class="summary-sub" id="dash-card-divida-sub">—</span></div></div>
+    <div class="summary-card" onclick="navigate('tributos')"><div class="summary-icon orange">${I.money}</div><div class="summary-info"><span class="summary-label">A Vencer</span><span class="summary-value" id="dash-card-vencer-valor" style="color:var(--orange)">Carregando...</span><span class="summary-sub" id="dash-card-vencer-sub">—</span></div></div>
+    <div class="summary-card" onclick="navigate('acordo')"><div class="summary-icon green">${I.check}</div><div class="summary-info"><span class="summary-label">Acordos</span><span class="summary-value" id="dash-card-acordos-valor" style="color:var(--accent)">—</span><span class="summary-sub" id="dash-card-acordos-sub">ativos</span></div></div>
+    <div class="summary-card" onclick="navigate('situacao_fiscal')"><div class="summary-icon accent">${I.cert}</div><div class="summary-info"><span class="summary-label">Inscrições</span><span class="summary-value" id="dash-card-inscricoes-valor">—</span><span class="summary-sub" id="dash-card-inscricoes-sub">—</span></div></div>
   </div>
   <div class="section-title">Acesso Rápido</div>
   <div class="quick-cards">
@@ -786,6 +892,34 @@ pages.dashboard=()=>`<div class="module-page">
     ${qc('perfil','Meu Perfil','Dados e foto','#6E9485',I.user)}
   </div>
 </div>`;
+
+/** Preenche cards do dashboard com GET /api/tributos/resumo. */
+async function hydrateDashboardResumo(){
+  if(currentUserType==='admin')return;
+  const doc=getCpfCnpjAtivo();
+  const errEl=document.getElementById('dash-resumo-erro');
+  const set=(id,text)=>{const el=document.getElementById(id);if(el)el.textContent=text;};
+  if(!doc){
+    if(errEl){errEl.style.display='flex';errEl.textContent='Documento do contribuinte não disponível para carregar o resumo fiscal.';}
+    return;
+  }
+  const resp=await fetchResumoApi(doc);
+  if(!resp.ok){
+    if(errEl){errEl.style.display='flex';errEl.textContent=resp.body.erro||'Não foi possível carregar o resumo fiscal.';}
+    set('dash-card-divida-valor','—');set('dash-card-vencer-valor','—');set('dash-card-acordos-valor','—');set('dash-card-inscricoes-valor','—');
+    return;
+  }
+  if(errEl)errEl.style.display='none';
+  const r=resp.body;
+  set('dash-card-divida-valor',formatBRL(r.totalDividaAtiva));
+  set('dash-card-divida-sub',Number(r.quantidadeInscricoesDivida||0)+' inscrições');
+  set('dash-card-vencer-valor',formatBRL(r.totalAVencer));
+  set('dash-card-vencer-sub',Number(r.quantidadeTributosAVencer||0)+' tributos');
+  set('dash-card-acordos-valor',String(r.quantidadeAcordosAtivos??0));
+  set('dash-card-acordos-sub','ativos');
+  set('dash-card-inscricoes-valor',String(r.quantidadeInscricoes??0));
+  set('dash-card-inscricoes-sub',Number(r.quantidadeImoveis||0)+' Imóveis · '+Number(r.quantidadeEmpresas||0)+' Empresas');
+}
 
 /* ── SITUAÇÃO FISCAL ── */
 pages.situacao_fiscal=()=>`<div class="module-page">
@@ -1561,6 +1695,7 @@ async function cancelarProcuracao(id){
 }
 const PROC_MODULOS={certidoes:'Certidões',alvara:'Alvará',segunda_via:'2ª Via',extrato_divida:'Extrato Dívida',tributos:'Tributos',acordo:'Acordo da Dívida',itiv:'ITIV',nfse:'NFSe',ficha_cadastral:'Ficha Cadastral',protocolo:'Protocolo',dec:'Domicílio Eletrônico',caixa_postal:'Caixa Postal'};
 const PROC_ICONES={certidoes:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',alvara:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/>',segunda_via:'<path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>',extrato_divida:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>',tributos:'<path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',acordo:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',itiv:'<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>',nfse:'<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>',ficha_cadastral:'<rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/>',protocolo:'<path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/>',dec:'<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',caixa_postal:'<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>'};
+/* Procuração: monta endereço do outorgante; com JFU usa só c.endereco (string única). */
 function getOutorganteData(){
   if(currentUserType==='admin'){
     const users=getAdminUsers();
@@ -1568,7 +1703,9 @@ function getOutorganteData(){
     return{nome:u?u.nome:'Administrador',cpf:u?u.login:'admin',email:u?u.email:'',endereco:'',tipo:'admin'};
   }
   const c=getContribuinteLogado();
-  return{nome:c.nome,cpf:c.cpf,email:c.email||'',endereco:(c.endereco||'')+' — '+(c.bairro||'')+' — '+(c.cidade||'')+'/'+(c.uf||''),tipo:'contribuinte'};
+  const cidadeUf=[c.cidade,c.uf].filter(Boolean).join('/');
+  const enderecoParts=[c.endereco,c.bairro,cidadeUf].filter(Boolean);
+  return{nome:c.nome,cpf:c.cpf,email:c.email||'',endereco:enderecoParts.join(' — '),tipo:'contribuinte'};
 }
 pages.procuracao=()=>{
   if(procuracaoView==='nova')return pages._procuracao_nova();
@@ -2316,31 +2453,34 @@ pages.notificacoes=()=>`<div class="module-page">
 pages.perfil=()=>{
   if(currentUserType==='admin')return pages._perfil_admin();
   const c=getContribuinteLogado();
-  const initials=c.nome.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase();
+  const displayNome=c.tipoPessoa==='PJ'&&c.nomeFantasia?c.nomeFantasia:c.nome;
+  const initials=displayNome.split(' ').map(n=>n[0]).slice(0,2).join('').toUpperCase();
   const p=localStorage.getItem('arrecada_photo');const ph=p?`<img src="${p}">`:initials;
-  const cpfMask=c.cpf.replace(/(\d{3})\.(\d{3})\.(\d{3})-(\d{2})/,'***.***.${c.cpf.slice(8)}');
+  const docLabel=c.tipoPessoa==='PJ'?'CNPJ':'CPF';
+  const docValor=c.tipoPessoa==='PJ'?(c.cnpj||formatDocumentoDisplay(c.cpfCnpj,c.tipoPessoa)):(c.cpf||formatDocumentoDisplay(c.cpfCnpj,c.tipoPessoa));
+  const docDigits=String(c.cpfCnpj||'').replace(/\D/g,'');
+  const docMask=docDigits.length===11
+    ?'***.***.'+docDigits.slice(-6,-2)+'-'+docDigits.slice(-2)
+    :(docDigits.length===14?docValor:docValor);
   const govColor=c.govbr==='Ouro'?'var(--orange)':c.govbr==='Prata'?'#A8A8A8':'#CD7F32';
   return`<div class="module-page">
   <div class="page-header"><h1>Meu Perfil</h1><p>Gerencie dados, foto, endereço e preferências.</p></div>
   <div class="card-panel" style="margin-bottom:14px"><div class="card-panel-body" style="display:flex;align-items:center;gap:20px;flex-wrap:wrap">
     <div class="profile-photo-wrapper" onclick="triggerPhotoUpload()"><div class="profile-photo" id="profile-photo-main">${ph}</div><div class="profile-photo-edit"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div></div>
-    <div style="flex:1;min-width:180px"><h2 style="font-size:1.2rem;font-weight:800">${c.nome}</h2><p style="color:var(--text-secondary);font-size:.85rem">CPF: ${cpfMask} | Gov.BR: <span style="color:${govColor};font-weight:700">${c.govbr}</span></p><p style="color:var(--text-muted);font-size:.78rem;margin-top:2px">Último acesso: ${new Date().toLocaleDateString('pt-BR')}</p></div>
+    <div style="flex:1;min-width:180px"><h2 style="font-size:1.2rem;font-weight:800">${c.nome}</h2>${c.nomeFantasia?'<p style="font-size:.82rem;color:var(--text-secondary)">'+c.nomeFantasia+'</p>':''}<p style="color:var(--text-secondary);font-size:.85rem">${docLabel}: ${docMask} | Gov.BR: <span style="color:${govColor};font-weight:700">${c.govbr||'Bronze'}</span></p><p style="color:var(--text-muted);font-size:.78rem;margin-top:2px">Último acesso: ${new Date().toLocaleDateString('pt-BR')}</p></div>
     <button class="btn btn-outline btn-sm" onclick="triggerPhotoUpload()">Alterar Foto</button>
   </div></div>
   <div class="grid-2-gap14">
     <div class="card-panel"><div class="card-panel-header"><h3>Dados Cadastrais</h3></div><div class="card-panel-body">
       <div class="form-group"><label>Nome</label><input class="form-input" value="${c.nome}" disabled></div>
-      <div class="form-group"><label>CPF</label><input class="form-input" value="${c.cpf}" disabled></div>
+      <div class="form-group"><label>${docLabel}</label><input class="form-input" value="${docValor}" disabled></div>
       <div class="form-group"><label>E-mail *</label><input class="form-input" value="${c.email||''}"></div>
       <div class="form-group"><label>Telefone</label><input class="form-input" value="${c.telefone||''}"></div>
       <div class="form-group"><label>WhatsApp</label><input class="form-input" value="${c.telefone||''}"></div>
     </div></div>
+    <!-- Perfil contribuinte: endereço único (string da API JFU); sem CEP/bairro/cidade separados -->
     <div class="card-panel"><div class="card-panel-header"><h3>Endereço</h3></div><div class="card-panel-body">
-      <div class="form-group"><label>CEP</label><input class="form-input" value="${c.cep||''}"></div>
-      <div class="form-group"><label>Logradouro</label><input class="form-input" value="${c.endereco||''}"></div>
-      <div class="form-group"><label>Bairro</label><input class="form-input" value="${c.bairro||''}"></div>
-      <div class="form-group"><label>Cidade</label><input class="form-input" value="${c.cidade||''}" disabled></div>
-      <div class="form-group"><label>UF</label><input class="form-input" value="${c.uf||''}" disabled></div>
+      <div class="form-group"><label>Endereço</label><input class="form-input" value="${c.endereco||''}"></div>
     </div></div>
   </div>
   <div style="display:flex;justify-content:flex-end;margin-top:12px;gap:8px"><button class="btn btn-ghost btn-sm">Cancelar</button><button class="btn btn-primary btn-sm">Salvar</button></div>

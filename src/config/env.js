@@ -17,7 +17,7 @@ const env = {
   TRIBUTOS_API_BASE_URL: process.env.TRIBUTOS_API_BASE_URL || '',
   TRIBUTOS_API_KEY: process.env.TRIBUTOS_API_KEY || '',
   // Tipo de autenticação aceito pela API deles: 'bearer' | 'x-api-key' | 'none'
-  TRIBUTOS_AUTH_TYPE: process.env.TRIBUTOS_AUTH_TYPE || 'bearer',
+  TRIBUTOS_AUTH_TYPE: process.env.TRIBUTOS_AUTH_TYPE || 'x-api-key',
   TRIBUTOS_TIMEOUT_MS: Number(process.env.TRIBUTOS_TIMEOUT_MS || 10000),
 };
 
