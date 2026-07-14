@@ -46,6 +46,8 @@ test('GET /api/tributos/contribuinte consulta JFU e mapeia resposta', async () =
     assert.equal(resp.status, 200);
     assert.equal(body.cpfCnpj, '09592400000108');
     assert.equal(body.nomeRazaoSocial, 'Empresa Homologacao');
+    assert.equal(typeof body.endereco, 'string');
+    assert.equal(body.endereco, 'Rua 1 — Centro — Lauro de Freitas/BA — CEP: 42700000');
     assert.match(upstreamRequest.url, /contribuintes\.rule/);
     assert.match(upstreamRequest.url, /sys=JFU/);
     assert.match(upstreamRequest.url, /cpfCnpj=09592400000108/);

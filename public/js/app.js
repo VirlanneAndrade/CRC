@@ -324,23 +324,45 @@ function getCpfCnpjAtivo(){
   const c=getContribuinteLogado();
   return getDocumentoFromSelecao(c);
 }
+/* ── Integração JFU: contribuinte e resumo fiscal ── */
+/** Proxy browser → GET /api/tributos/contribuinte */
 async function fetchContribuinteApi(cpfCnpj){
   const doc=String(cpfCnpj||'').replace(/\D/g,'');
   const r=await fetch('/api/tributos/contribuinte?cpfCnpj='+encodeURIComponent(doc));
   const body=await r.json().catch(()=>({}));
   return{ok:r.ok,status:r.status,body};
 }
+/** Proxy browser → GET /api/tributos/resumo */
 async function fetchResumoApi(cpfCnpj){
   const doc=String(cpfCnpj||'').replace(/\D/g,'');
   const r=await fetch('/api/tributos/resumo?cpfCnpj='+encodeURIComponent(doc));
   const body=await r.json().catch(()=>({}));
   return{ok:r.ok,status:r.status,body};
 }
+/** Converte resposta CRC para objeto do localStorage; endereco string da JFU. */
 function mapContribuinteToLocal(api,meta={}){
   const cpfCnpj=String(api.cpfCnpj||'').replace(/\D/g,'')||getDocumentoFromSelecao(meta);
   const tipoPessoa=api.tipoPessoa||(cpfCnpj.length===14?'PJ':'PF');
-  const end=api.endereco||{};
-  const logradouro=[end.logradouro,end.numero].filter(Boolean).join(', ')||end.logradouro||meta.endereco||'';
+  let endereco='';
+  let bairro='';
+  let cidade='';
+  let uf='';
+  let cep='';
+  if(typeof api.endereco==='string'){
+    endereco=api.endereco.trim();
+  }else if(api.endereco&&typeof api.endereco==='object'){
+    const end=api.endereco;
+    endereco=[end.logradouro,end.numero].filter(Boolean).join(', ')||end.logradouro||'';
+    bairro=end.bairro||'';
+    cidade=end.cidade||'';
+    uf=end.uf||'';
+    cep=end.cep||'';
+  }
+  if(!endereco)endereco=meta.endereco||'';
+  if(!bairro)bairro=meta.bairro||'';
+  if(!cidade)cidade=meta.cidade||'';
+  if(!uf)uf=meta.uf||'';
+  if(!cep)cep=meta.cep||'';
   const docFmt=formatDocumentoDisplay(cpfCnpj,tipoPessoa);
   return{
     id:api.id||meta.id||cpfCnpj,
@@ -352,15 +374,16 @@ function mapContribuinteToLocal(api,meta={}){
     cnpj:tipoPessoa==='PJ'?docFmt:null,
     email:api.email||meta.email||'',
     telefone:api.telefone||meta.telefone||'',
-    endereco:logradouro,
-    bairro:end.bairro||meta.bairro||'',
-    cidade:end.cidade||meta.cidade||'',
-    uf:end.uf||meta.uf||'',
-    cep:end.cep||meta.cep||'',
+    endereco,
+    bairro,
+    cidade,
+    uf,
+    cep,
     govbr:api.nivelGovBr||meta.govbr||'Bronze',
     status:api.status||null,
   };
 }
+/** Usado no login e na troca de contribuinte; bloqueia se a API falhar. */
 async function loadContribuinteFromApi(selecao){
   const doc=getDocumentoFromSelecao(selecao);
   if(!doc||!(doc.length===11||doc.length===14)){
@@ -870,6 +893,7 @@ pages.dashboard=()=>`<div class="module-page">
   </div>
 </div>`;
 
+/** Preenche cards do dashboard com GET /api/tributos/resumo. */
 async function hydrateDashboardResumo(){
   if(currentUserType==='admin')return;
   const doc=getCpfCnpjAtivo();
@@ -1671,6 +1695,7 @@ async function cancelarProcuracao(id){
 }
 const PROC_MODULOS={certidoes:'Certidões',alvara:'Alvará',segunda_via:'2ª Via',extrato_divida:'Extrato Dívida',tributos:'Tributos',acordo:'Acordo da Dívida',itiv:'ITIV',nfse:'NFSe',ficha_cadastral:'Ficha Cadastral',protocolo:'Protocolo',dec:'Domicílio Eletrônico',caixa_postal:'Caixa Postal'};
 const PROC_ICONES={certidoes:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',alvara:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12l2 2 4-4"/>',segunda_via:'<path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/>',extrato_divida:'<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/>',tributos:'<path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>',acordo:'<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',itiv:'<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>',nfse:'<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>',ficha_cadastral:'<rect x="2" y="3" width="20" height="18" rx="2"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/>',protocolo:'<path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/>',dec:'<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>',caixa_postal:'<polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.45-6.89A2 2 0 0016.76 4H7.24a2 2 0 00-1.79 1.11z"/>'};
+/* Procuração: monta endereço do outorgante; com JFU usa só c.endereco (string única). */
 function getOutorganteData(){
   if(currentUserType==='admin'){
     const users=getAdminUsers();
@@ -1678,7 +1703,9 @@ function getOutorganteData(){
     return{nome:u?u.nome:'Administrador',cpf:u?u.login:'admin',email:u?u.email:'',endereco:'',tipo:'admin'};
   }
   const c=getContribuinteLogado();
-  return{nome:c.nome,cpf:c.cpf,email:c.email||'',endereco:(c.endereco||'')+' — '+(c.bairro||'')+' — '+(c.cidade||'')+'/'+(c.uf||''),tipo:'contribuinte'};
+  const cidadeUf=[c.cidade,c.uf].filter(Boolean).join('/');
+  const enderecoParts=[c.endereco,c.bairro,cidadeUf].filter(Boolean);
+  return{nome:c.nome,cpf:c.cpf,email:c.email||'',endereco:enderecoParts.join(' — '),tipo:'contribuinte'};
 }
 pages.procuracao=()=>{
   if(procuracaoView==='nova')return pages._procuracao_nova();
@@ -2451,12 +2478,9 @@ pages.perfil=()=>{
       <div class="form-group"><label>Telefone</label><input class="form-input" value="${c.telefone||''}"></div>
       <div class="form-group"><label>WhatsApp</label><input class="form-input" value="${c.telefone||''}"></div>
     </div></div>
+    <!-- Perfil contribuinte: endereço único (string da API JFU); sem CEP/bairro/cidade separados -->
     <div class="card-panel"><div class="card-panel-header"><h3>Endereço</h3></div><div class="card-panel-body">
-      <div class="form-group"><label>CEP</label><input class="form-input" value="${c.cep||''}"></div>
-      <div class="form-group"><label>Logradouro</label><input class="form-input" value="${c.endereco||''}"></div>
-      <div class="form-group"><label>Bairro</label><input class="form-input" value="${c.bairro||''}"></div>
-      <div class="form-group"><label>Cidade</label><input class="form-input" value="${c.cidade||''}" disabled></div>
-      <div class="form-group"><label>UF</label><input class="form-input" value="${c.uf||''}" disabled></div>
+      <div class="form-group"><label>Endereço</label><input class="form-input" value="${c.endereco||''}"></div>
     </div></div>
   </div>
   <div style="display:flex;justify-content:flex-end;margin-top:12px;gap:8px"><button class="btn btn-ghost btn-sm">Cancelar</button><button class="btn btn-primary btn-sm">Salvar</button></div>

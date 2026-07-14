@@ -9,6 +9,7 @@ const { mapContribuinte, mapResumoFiscal } = require('../services/tributosMapper
 
 const router = express.Router();
 
+/** Envia JSON da JFU ou erro; em sucesso aplica o mapper (contrato CRC). */
 function replyMapped(res, result, mapper) {
   if (!result.ok) {
     return res.status(result.status).json(result.body);
@@ -31,11 +32,12 @@ router.get('/api/tributos/health', async (_req, res) => {
   res.status(result.status).json(result.body);
 });
 
-/* ---- Consultas por contribuinte (JFU) ---- */
+/* Contribuinte: query cpfCnpj → JFU contribuintes.rule → mapContribuinte */
 router.get('/api/tributos/contribuinte', async (req, res) => {
   replyMapped(res, await tributos.getContribuinte(req.query.cpfCnpj), mapContribuinte);
 });
 
+/* Resumo fiscal: mesma rule com resumo=true → mapResumoFiscal */
 router.get('/api/tributos/resumo', async (req, res) => {
   replyMapped(res, await tributos.getResumoFiscal(req.query.cpfCnpj), mapResumoFiscal);
 });

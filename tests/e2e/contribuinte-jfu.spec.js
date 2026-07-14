@@ -36,7 +36,7 @@ test('fluxo contribuinte: login API + resumo dashboard (caminho feliz)', async (
       tipoPessoa: 'PF',
       nivelGovBr: 'Ouro',
       email: 'maria@teste.com',
-      endereco: { logradouro: 'Rua X', bairro: 'Centro', cidade: 'Lauro de Freitas', uf: 'BA' },
+      endereco: 'Rua X - Centro - Lauro de Freitas/BA',
     }));
   });
 
@@ -51,6 +51,8 @@ test('fluxo contribuinte: login API + resumo dashboard (caminho feliz)', async (
     assert.equal(contrib.status, 200);
     const contribBody = await contrib.json();
     assert.equal(contribBody.nomeRazaoSocial, 'Maria Fernanda');
+    assert.equal(typeof contribBody.endereco, 'string');
+    assert.equal(contribBody.endereco, 'Rua X - Centro - Lauro de Freitas/BA');
 
     const resumo = await fetch(`${base}/api/tributos/resumo?cpfCnpj=03456789012`);
     assert.equal(resumo.status, 200);

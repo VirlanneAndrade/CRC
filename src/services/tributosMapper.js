@@ -1,5 +1,4 @@
-/* Normaliza respostas da API JFU (Webrun) para o contrato documentado do CRC. */
-
+/* Normaliza respostas da API DE TRIBUTOS para o contrato do CRC (contribuinte + resumo fiscal).
 function pickFirst(value) {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
@@ -11,38 +10,27 @@ function toNumber(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/** Endereço no contrato CRC é sempre string única (API DE TRIBUTOS manda texto; objeto legado é montado). */
 function normalizeEndereco(raw) {
-  if (!raw || typeof raw !== 'object') {
-    if (typeof raw === 'string' && raw.trim()) {
-      return {
-        logradouro: raw.trim(),
-        numero: null,
-        complemento: null,
-        bairro: null,
-        cidade: null,
-        uf: null,
-        cep: null,
-      };
-    }
-    return {
-      logradouro: null,
-      numero: null,
-      complemento: null,
-      bairro: null,
-      cidade: null,
-      uf: null,
-      cep: null,
-    };
+  if (typeof raw === 'string') {
+    const text = raw.trim();
+    return text || null;
   }
-  return {
-    logradouro: raw.logradouro ?? raw.endereco ?? null,
-    numero: raw.numero ?? null,
-    complemento: raw.complemento ?? null,
-    bairro: raw.bairro ?? null,
-    cidade: raw.cidade ?? raw.municipio ?? null,
-    uf: raw.uf ?? null,
-    cep: raw.cep ?? null,
-  };
+  if (!raw || typeof raw !== 'object') return null;
+
+  const logradouro = raw.logradouro ?? raw.endereco ?? null;
+  const numero = raw.numero ?? null;
+  const complemento = raw.complemento ?? null;
+  const bairro = raw.bairro ?? null;
+  const cidade = raw.cidade ?? raw.municipio ?? null;
+  const uf = raw.uf ?? null;
+  const cep = raw.cep ?? null;
+
+  const rua = [logradouro, numero].filter(Boolean).join(', ');
+  const cidadeUf = [cidade, uf].filter(Boolean).join('/');
+  const cepPart = cep ? `CEP: ${cep}` : null;
+  const parts = [rua || null, complemento, bairro, cidadeUf || null, cepPart].filter(Boolean);
+  return parts.length ? parts.join(' — ') : null;
 }
 
 function inferTipoPessoa(cpfCnpj, raw) {
@@ -54,12 +42,14 @@ function inferTipoPessoa(cpfCnpj, raw) {
   return null;
 }
 
+/** Extrai objeto útil de body.data / body.resultado / body.contribuinte / etc. */
 function unwrapPayload(body) {
   if (!body || typeof body !== 'object') return {};
   const nested = body.data ?? body.resultado ?? body.contribuinte ?? body.resumo ?? body;
   return pickFirst(nested) || nested || {};
 }
 
+/** API DE TRIBUTOS → contrato GET /api/tributos/contribuinte (endereco: string | null). */
 function mapContribuinte(body) {
   const raw = unwrapPayload(body);
   const cpfCnpj = String(raw.cpfCnpj ?? raw.cpf_cnpj ?? '').replace(/\D/g, '');
@@ -78,6 +68,7 @@ function mapContribuinte(body) {
   };
 }
 
+/** API DE TRIBUTOS → contrato GET /api/tributos/resumo (totais para cards do dashboard). */
 function mapResumoFiscal(body) {
   const raw = unwrapPayload(body);
   return {

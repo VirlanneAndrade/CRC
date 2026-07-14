@@ -1,5 +1,10 @@
 /* =============================================================
-   tributosClient — Camada de integração com a API de Tributos (JFU/Webrun)
+   tributosClient — HTTP client para API JFU (Webrun/SIFMP).
+
+   Contribuinte e resumo fiscal usam a mesma rule:
+   GET {BASE}/contribuintes.rule?sys=JFU&cpfCnpj=... [&resumo=true]
+
+   Doc: INTEGRACAO_JFU_CONTRIBUINTE_RESUMO_FISCAL.md
    ============================================================= */
 
 const env = require('../config/env');
@@ -33,6 +38,7 @@ function buildUrl(pathname, query = {}) {
   return url.toString();
 }
 
+/** Monta URL da rule JFU (contribuintes.rule + sys=JFU). */
 function buildRuleUrl(query = {}) {
   return buildUrl(JFU_RULE_CONTRIBUINTES, { sys: JFU_SYS, ...query });
 }
@@ -80,6 +86,7 @@ async function request(method, pathname, { query, body } = {}) {
   }
 }
 
+/** GET na rule JFU; retorno padronizado { ok, status, body }. */
 async function requestRule(query = {}) {
   if (!isConfigured()) {
     return {
@@ -100,6 +107,7 @@ async function requestRule(query = {}) {
   }
 }
 
+/** Valida CPF/CNPJ (11 ou 14 dígitos) antes de chamar o upstream. */
 function withDocumento(value, fn) {
   const documento = ensureValidCpfCnpj(value);
   if (!documento) {
@@ -114,9 +122,11 @@ function withDocumento(value, fn) {
 
 const health = () => request('GET', '/health');
 
+/** Consulta cadastro do contribuinte na JFU (sem resumo=true). */
 const getContribuinte = (cpfCnpj) =>
   withDocumento(cpfCnpj, (doc) => requestRule({ cpfCnpj: doc }));
 
+/** Consulta resumo fiscal na JFU (mesma rule com resumo=true). */
 const getResumoFiscal = (cpfCnpj) =>
   withDocumento(cpfCnpj, (doc) => requestRule({ cpfCnpj: doc, resumo: 'true' }));
 

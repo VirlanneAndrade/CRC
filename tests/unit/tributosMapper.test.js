@@ -1,9 +1,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 
-const { mapContribuinte, mapResumoFiscal } = require('../../src/services/tributosMapper');
+const { mapContribuinte, mapResumoFiscal, normalizeEndereco } = require('../../src/services/tributosMapper');
 
-test('mapContribuinte normaliza payload canônico', () => {
+test('mapContribuinte normaliza payload canônico com endereco string montada', () => {
   const mapped = mapContribuinte({
     id: '99',
     tipoPessoa: 'PJ',
@@ -28,8 +28,28 @@ test('mapContribuinte normaliza payload canônico', () => {
   assert.equal(mapped.tipoPessoa, 'PJ');
   assert.equal(mapped.nomeRazaoSocial, 'Empresa Exemplo LTDA');
   assert.equal(mapped.nomeFantasia, 'Exemplo');
-  assert.equal(mapped.endereco.bairro, 'Centro');
+  assert.equal(typeof mapped.endereco, 'string');
+  assert.equal(mapped.endereco, 'Rua A, 10 — Centro — Lauro de Freitas/BA — CEP: 42700000');
   assert.equal(mapped.nivelGovBr, 'Ouro');
+});
+
+test('mapContribuinte preserva endereco string da JFU', () => {
+  const mapped = mapContribuinte({
+    cpfCnpj: '26434105568',
+    nomeRazaoSocial: 'JULIETA JOSE NOVAES SILVA',
+    endereco: 'RUA JOAO ORTINS, 00032 - VILA PRAIANA - CENTRO - LAURO DE FREITAS/BA - CEP: 42700000',
+  });
+
+  assert.equal(
+    mapped.endereco,
+    'RUA JOAO ORTINS, 00032 - VILA PRAIANA - CENTRO - LAURO DE FREITAS/BA - CEP: 42700000'
+  );
+});
+
+test('normalizeEndereco retorna null para vazio', () => {
+  assert.equal(normalizeEndereco(null), null);
+  assert.equal(normalizeEndereco(''), null);
+  assert.equal(normalizeEndereco({}), null);
 });
 
 test('mapContribuinte aceita snake_case e objeto data', () => {
@@ -46,6 +66,7 @@ test('mapContribuinte aceita snake_case e objeto data', () => {
   assert.equal(mapped.tipoPessoa, 'PF');
   assert.equal(mapped.nomeRazaoSocial, 'Maria Silva');
   assert.equal(mapped.nivelGovBr, 'Prata');
+  assert.equal(mapped.endereco, 'Rua B — Portão');
 });
 
 test('mapResumoFiscal normaliza campos do dashboard', () => {
