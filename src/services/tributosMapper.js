@@ -1,4 +1,4 @@
-/* Normaliza respostas da API DE TRIBUTOS para o contrato do CRC (contribuinte + resumo fiscal).
+/* Normaliza respostas da API DE TRIBUTOS para o contrato do CRC (contribuinte + resumo fiscal).*/
 function pickFirst(value) {
   if (Array.isArray(value)) return value[0] ?? null;
   return value ?? null;
